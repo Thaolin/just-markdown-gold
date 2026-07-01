@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
@@ -13,6 +14,25 @@ if (!gotLock) {
   app.quit();
   process.exit(0);
 }
+
+function log(message, details) {
+  try {
+    const logPath = path.join(app.getPath("userData"), "markdown-editor.log");
+    fsSync.mkdirSync(path.dirname(logPath), { recursive: true });
+    const suffix = details == null ? "" : ` ${typeof details === "string" ? details : JSON.stringify(details)}`;
+    fsSync.appendFileSync(logPath, `[${new Date().toISOString()}] ${message}${suffix}\n`, "utf8");
+  } catch {
+    /* Logging must never break the editor. */
+  }
+}
+
+process.on("uncaughtException", (error) => {
+  log("main uncaughtException", { message: error.message, stack: error.stack });
+});
+
+process.on("unhandledRejection", (reason) => {
+  log("main unhandledRejection", { reason: String(reason), stack: reason?.stack });
+});
 
 function isMarkdownPath(filePath) {
   const ext = path.extname(filePath).toLowerCase();
@@ -29,6 +49,8 @@ function findOpenPath(argv) {
 }
 
 function createWindow() {
+  log("createWindow", { packaged: app.isPackaged, pendingOpenPath, argv: process.argv });
+
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 820,
@@ -45,10 +67,25 @@ function createWindow() {
   });
 
   if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+    const indexPath = path.join(__dirname, "..", "dist", "index.html");
+    log("loadFile", { indexPath });
+    mainWindow.loadFile(indexPath);
   } else {
+    log("loadURL", { url: "http://127.0.0.1:5173" });
     mainWindow.loadURL("http://127.0.0.1:5173");
   }
+
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
+    log("renderer did-fail-load", { errorCode, errorDescription, validatedURL });
+  });
+
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    log("renderer render-process-gone", details);
+  });
+
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    log("renderer console-message", { level, message, line, sourceId });
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -81,6 +118,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  log("app ready", { userData: app.getPath("userData") });
   createWindow();
 
   app.on("activate", () => {
@@ -94,6 +132,7 @@ app.on("window-all-closed", () => {
 
 app.on("second-instance", (_event, argv) => {
   const nextPath = findOpenPath(argv);
+  log("second-instance", { argv, nextPath });
   if (!mainWindow) {
     if (nextPath) pendingOpenPath = nextPath;
     createWindow();
@@ -107,6 +146,7 @@ app.on("second-instance", (_event, argv) => {
 ipcMain.handle("file:get-pending-open", () => {
   const filePath = pendingOpenPath;
   pendingOpenPath = null;
+  log("file:get-pending-open", { filePath });
   return filePath;
 });
 
@@ -122,8 +162,15 @@ ipcMain.handle("file:open-dialog", async () => {
 });
 
 ipcMain.handle("file:read", async (_event, filePath) => {
-  const content = await fs.readFile(filePath, "utf8");
-  return { filePath, content };
+  log("file:read start", { filePath });
+  try {
+    const content = await fs.readFile(filePath, "utf8");
+    log("file:read success", { filePath, chars: content.length });
+    return { filePath, content };
+  } catch (error) {
+    log("file:read error", { filePath, message: error.message, stack: error.stack });
+    throw error;
+  }
 });
 
 ipcMain.handle("file:save", async (_event, payload) => {
@@ -177,4 +224,8 @@ ipcMain.handle("app:close-after-save", () => {
 
 ipcMain.handle("app:cancel-close-after-save", () => {
   closePromptActive = false;
+});
+
+ipcMain.on("app:renderer-log", (_event, payload) => {
+  log("renderer log", payload);
 });

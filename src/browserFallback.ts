@@ -23,6 +23,7 @@ export function installBrowserFallback(): void {
     confirmUnsaved: async (fileLabel) => (window.confirm(`Discard unsaved changes to ${fileLabel}?`) ? "discard" : "cancel"),
     closeAfterSave: async () => undefined,
     cancelCloseAfterSave: async () => undefined,
+    log: (level, message, extra) => console[level](message, extra),
     onOpenRequest: () => () => undefined,
     onSaveBeforeClose: () => () => undefined,
   };

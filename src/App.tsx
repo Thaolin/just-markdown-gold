@@ -90,6 +90,7 @@ export default function App() {
 
   const openPath = useCallback(
     async (nextPath: string) => {
+      window.markdownFiles.log("info", "openPath requested", { filePath: nextPath });
       if (!(await confirmBeforeLosingChanges())) return;
       setStatus("loading");
       setError(null);
@@ -99,7 +100,13 @@ export default function App() {
         setContent(doc.content);
         setSavedContent(doc.content);
         setStatus("idle");
+        window.markdownFiles.log("info", "openPath loaded", { filePath: doc.filePath, chars: doc.content.length });
       } catch (e) {
+        window.markdownFiles.log("error", "openPath failed", {
+          filePath: nextPath,
+          message: (e as Error).message,
+          stack: (e as Error).stack,
+        });
         setError((e as Error).message);
         setStatus("error");
       }

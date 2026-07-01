@@ -1,5 +1,25 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+function sendRendererLog(level, message, extra = {}) {
+  ipcRenderer.send("app:renderer-log", { level, message, ...extra });
+}
+
+window.addEventListener("error", (event) => {
+  sendRendererLog("error", event.message, {
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    stack: event.error?.stack,
+  });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  sendRendererLog("error", "Unhandled promise rejection", {
+    reason: String(event.reason),
+    stack: event.reason?.stack,
+  });
+});
+
 contextBridge.exposeInMainWorld("markdownFiles", {
   getPendingOpen: () => ipcRenderer.invoke("file:get-pending-open"),
   openDialog: () => ipcRenderer.invoke("file:open-dialog"),
@@ -10,6 +30,7 @@ contextBridge.exposeInMainWorld("markdownFiles", {
   confirmUnsaved: (fileLabel) => ipcRenderer.invoke("app:confirm-unsaved", fileLabel),
   closeAfterSave: () => ipcRenderer.invoke("app:close-after-save"),
   cancelCloseAfterSave: () => ipcRenderer.invoke("app:cancel-close-after-save"),
+  log: (level, message, extra) => sendRendererLog(level, message, extra),
   onOpenRequest: (callback) => {
     const listener = (_event, filePath) => callback(filePath);
     ipcRenderer.on("file:open-request", listener);

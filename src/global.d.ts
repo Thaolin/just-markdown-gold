@@ -15,6 +15,7 @@ declare global {
       confirmUnsaved: (fileLabel: string) => Promise<"save" | "discard" | "cancel">;
       closeAfterSave: () => Promise<void>;
       cancelCloseAfterSave: () => Promise<void>;
+      log: (level: "info" | "warn" | "error", message: string, extra?: Record<string, unknown>) => void;
       onOpenRequest: (callback: (filePath: string) => void) => () => void;
       onSaveBeforeClose: (callback: () => void) => () => void;
     };
