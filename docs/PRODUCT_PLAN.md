@@ -48,6 +48,10 @@ Do not turn this into:
    - Style common Markdown constructs cleanly.
    - Avoid adding modes, sidebars, or workflows unless daily use demands them.
 
+## Maybe Later
+
+- Auto-update, so an installed copy can quietly keep up with small fixes.
+
 ## Public Repo Checklist
 
 - README with the simple positioning.

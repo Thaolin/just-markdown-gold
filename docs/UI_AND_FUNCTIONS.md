@@ -32,6 +32,10 @@ These are the next functions that fit the product boundary:
 - Clear first-run or empty-file state.
 - Installer upgrade and uninstall verification.
 
+## Maybe Later
+
+- Auto-update for installed builds. Useful for dogfooding, but not part of the core editor surface.
+
 ## Things To Avoid
 
 - Workspaces.
