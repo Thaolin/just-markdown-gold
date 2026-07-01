@@ -10,13 +10,13 @@
   --accent-weak: oklch(31% 0.05 184);
   --warn: oklch(77% 0.13 80);
   --bad: oklch(68% 0.15 22);
-  --font-serif: Georgia, "Times New Roman", serif;
+  --font-serif: Cambria, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
   --fs-small: 12px;
   --fs-body: 14px;
-  --fs-read: 17px;
-  --lh-read: 1.7;
-  --measure: 70ch;
+  --fs-read: 18px;
+  --lh-read: 1.75;
+  --measure: 68ch;
 }
 
 * {
@@ -288,10 +288,11 @@ button:disabled {
 }
 
 .editor-host .cm-content {
-  padding: 34px clamp(24px, calc((100% - var(--measure)) / 2), 160px);
+  padding: 42px max(44px, calc((100% - var(--measure)) / 2)) 58px;
   font-family: var(--font-serif);
   font-size: var(--fs-read);
   line-height: var(--lh-read);
+  font-weight: 400;
   color: var(--fg);
   caret-color: var(--accent);
 }

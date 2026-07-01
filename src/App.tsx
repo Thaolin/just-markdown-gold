@@ -12,6 +12,10 @@ function positionKey(filePath: string | null): string {
   return filePath ?? "untitled";
 }
 
+function wordCount(text: string): number {
+  return text.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)?.length ?? 0;
+}
+
 export default function App() {
   const [filePath, setFilePath] = useState<string | null>(null);
   const [content, setContent] = useState(EMPTY_DOC);
@@ -25,6 +29,7 @@ export default function App() {
   const recoveryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const title = `${dirty ? "*" : ""}${fileName(filePath)} - Just Markdown: Gold Edition`;
   const pathLabel = filePath ?? "Unsaved local Markdown file";
+  const words = wordCount(content);
 
   const cancelRecoveryTimer = useCallback(() => {
     if (recoveryTimer.current) {
@@ -287,7 +292,7 @@ export default function App() {
 
       <div className="subbar">
         <span className={`status-pill ${dirty ? "is-dirty" : ""}`}>{statusText}</span>
-        <span>{content.length.toLocaleString()} chars</span>
+        <span>{words.toLocaleString()} words</span>
         <span>Ctrl+B/I</span>
         <span>Ctrl+Alt+1/2/3</span>
         <span>Ctrl+Shift+./8/7</span>
