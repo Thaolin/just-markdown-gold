@@ -26,6 +26,13 @@ export default function App() {
   const title = `${dirty ? "*" : ""}${fileName(filePath)} - Just Markdown: Gold Edition`;
   const pathLabel = filePath ?? "Unsaved local Markdown file";
 
+  const cancelRecoveryTimer = useCallback(() => {
+    if (recoveryTimer.current) {
+      clearTimeout(recoveryTimer.current);
+      recoveryTimer.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -94,6 +101,7 @@ export default function App() {
     async (nextPath: string) => {
       console.log("openPath requested", { filePath: nextPath });
       if (!(await confirmBeforeLosingChanges())) return;
+      cancelRecoveryTimer();
       setStatus("loading");
       setError(null);
       try {
@@ -102,6 +110,8 @@ export default function App() {
         setContent(doc.content);
         setSavedContent(doc.content);
         setStatus("idle");
+        setRecoveryDraft(null);
+        void window.markdownFiles.clearRecoveryDraft();
         console.log("openPath loaded", { filePath: doc.filePath, chars: doc.content.length });
       } catch (e) {
         console.error("openPath failed", {
@@ -113,7 +123,7 @@ export default function App() {
         setStatus("error");
       }
     },
-    [confirmBeforeLosingChanges]
+    [cancelRecoveryTimer, confirmBeforeLosingChanges]
   );
 
   const openDialog = useCallback(async () => {
@@ -123,12 +133,15 @@ export default function App() {
 
   const newDoc = useCallback(async () => {
     if (!(await confirmBeforeLosingChanges())) return;
+    cancelRecoveryTimer();
     setFilePath(null);
     setContent(EMPTY_DOC);
     setSavedContent(EMPTY_DOC);
     setError(null);
     setStatus("idle");
-  }, [confirmBeforeLosingChanges]);
+    setRecoveryDraft(null);
+    void window.markdownFiles.clearRecoveryDraft();
+  }, [cancelRecoveryTimer, confirmBeforeLosingChanges]);
 
   // --- Native menu listeners ---
 
@@ -165,49 +178,55 @@ export default function App() {
   }, [livePreview]);
 
   useEffect(() => {
+    let cancelled = false;
     void window.markdownFiles.getPendingOpen().then((nextPath) => {
+      if (cancelled) return;
       if (nextPath) {
         void openPath(nextPath);
       } else {
         // ponytail: recovery draft only on fresh launch with no file to open
         void window.markdownFiles.getRecoveryDraft().then((draft) => {
-          if (draft) setRecoveryDraft(draft);
+          if (!cancelled && draft) setRecoveryDraft(draft);
         });
       }
     });
-    return window.markdownFiles.onOpenRequest((nextPath) => void openPath(nextPath));
+    const off = window.markdownFiles.onOpenRequest((nextPath) => {
+      if (!cancelled) void openPath(nextPath);
+    });
+    return () => { cancelled = true; off(); };
   }, [openPath]);
 
   // ── Debounced recovery-draft save while dirty ──
   useEffect(() => {
     if (!dirty) {
+      cancelRecoveryTimer();
       void window.markdownFiles.clearRecoveryDraft();
       return;
     }
-    if (recoveryTimer.current) clearTimeout(recoveryTimer.current);
+    cancelRecoveryTimer();
     recoveryTimer.current = setTimeout(() => {
       recoveryTimer.current = null;
       void window.markdownFiles.saveRecoveryDraft(content);
     }, 2000);
-    return () => {
-      if (recoveryTimer.current) clearTimeout(recoveryTimer.current);
-    };
-  }, [dirty, content]);
+    return cancelRecoveryTimer;
+  }, [cancelRecoveryTimer, dirty, content]);
 
   const restoreRecovery = useCallback(() => {
     if (!recoveryDraft) return;
+    cancelRecoveryTimer();
     setContent(recoveryDraft);
     setSavedContent(EMPTY_DOC); // still dirty — no real file yet
     setFilePath(null);
     setRecoveryDraft(null);
     setError(null);
     setStatus("idle");
-  }, [recoveryDraft]);
+  }, [cancelRecoveryTimer, recoveryDraft]);
 
   const dismissRecovery = useCallback(() => {
+    cancelRecoveryTimer();
     setRecoveryDraft(null);
     void window.markdownFiles.clearRecoveryDraft();
-  }, []);
+  }, [cancelRecoveryTimer]);
 
   const statusText = useMemo(() => {
     if (status === "loading") return "loading";

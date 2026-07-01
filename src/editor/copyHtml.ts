@@ -1,6 +1,7 @@
 // copyHtml.ts — produce text/html clipboard data from the CM6 Markdown buffer.
-// ponytail: bold, italic, headings, paragraph breaks. Add blockquotes/lists/hr when
-// copy-paste into Word/Docs proves they're missed.
+// ponytail: bold, italic, headings, paragraph breaks. The Markdown marks (*, **, #)
+// are SUPPRESSED in the HTML output (same as Live Preview hides them visually).
+// Blockquotes, lists, HR, links, images, code: deferred until someone misses them.
 
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
@@ -27,8 +28,9 @@ export function selectionToHtml(
   const doc = state.doc;
   if (from >= to) return "";
 
-  // ── collect inline mark ranges within the selection ──
+  // ── collect inline marks + ranges to suppress (EmphasisMark, HeaderMark) ──
   const events: MarkEvent[] = [];
+  const suppress: Array<[number, number]> = []; // [from, to) — text within is dropped
 
   syntaxTree(state).iterate({
     from,
@@ -46,12 +48,33 @@ export function selectionToHtml(
           events.push({ pos: nFrom, type: "open", tag: "em" });
           events.push({ pos: nTo, type: "close", tag: "em" });
           break;
+        case "EmphasisMark":
+        case "HeaderMark":
+          suppress.push([nFrom, nTo]);
+          break;
       }
     },
   });
 
-  // closest-first at same position so <em><strong>text</strong></em> nests correctly
+  // closest-first at same position so </em></strong> closes correctly nested marks
   events.sort((a, b) => a.pos - b.pos || (a.type === "close" ? -1 : 1));
+  suppress.sort((a, b) => a[0] - b[0]);
+
+  // slice text from [rangeFrom, rangeFrom+prev) to (rangeFrom+e.pos), skipping suppress ranges
+  const sliceVisible = (rangeFrom: number, absFrom: number, absTo: number): string => {
+    let out = "";
+    let pos = absFrom;
+    for (const [sFrom, sTo] of suppress) {
+      const s = Math.max(sFrom, pos);
+      const t = Math.min(sTo, absTo);
+      if (s < t) {
+        if (s > pos) out += escapeHtml(doc.sliceString(pos, s));
+        pos = t;
+      }
+    }
+    if (pos < absTo) out += escapeHtml(doc.sliceString(pos, absTo));
+    return out;
+  };
 
   // ── render inline HTML for a doc range, applying mark events ──
   const renderInline = (rangeFrom: number, rangeTo: number): string => {
@@ -68,7 +91,7 @@ export function selectionToHtml(
 
     for (const e of local) {
       if (e.pos > prev) {
-        parts.push(escapeHtml(doc.sliceString(rangeFrom + prev, rangeFrom + e.pos)));
+        parts.push(sliceVisible(rangeFrom, rangeFrom + prev, rangeFrom + e.pos));
       }
       if (e.type === "open") {
         parts.push(`<${e.tag}>`);
@@ -86,7 +109,7 @@ export function selectionToHtml(
     }
 
     if (rangeTo - rangeFrom > prev) {
-      parts.push(escapeHtml(doc.sliceString(rangeFrom + prev, rangeTo)));
+      parts.push(sliceVisible(rangeFrom, rangeFrom + prev, rangeTo));
     }
 
     while (stack.length) {
@@ -115,20 +138,17 @@ export function selectionToHtml(
       const contentTo = Math.min(lineTo, line.to);
       if (contentFrom < contentTo) {
         const inner = renderInline(contentFrom, contentTo);
-        blocks.push(`<h${level}>${inner}</h${level}>`);
+        if (inner) blocks.push(`<h${level}>${inner}</h${level}>`);
       }
     } else {
       const inner = renderInline(lineFrom, lineTo);
-      // Only emit <p> for non-empty lines; blank lines are just spacing
-      if (inner) {
-        blocks.push(`<p>${inner}</p>`);
-      }
+      if (inner) blocks.push(`<p>${inner}</p>`);
     }
   }
 
   // If only one block and it's a <p>, strip the wrapper — paste into inline contexts (email, etc.)
   if (blocks.length === 1 && blocks[0].startsWith("<p>")) {
-    return blocks[0].slice(3, -4); // strip <p> and </p>
+    return blocks[0].slice(3, -4);
   }
 
   return blocks.join("\n");
