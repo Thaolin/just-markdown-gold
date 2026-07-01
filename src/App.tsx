@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import DurableEditor from "./editor/DurableEditor";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DurableEditor, { findInEditor } from "./editor/DurableEditor";
 
 const EMPTY_DOC = "# Untitled\n\n";
 
@@ -19,9 +19,11 @@ export default function App() {
   const [livePreview, setLivePreview] = useState(true);
   const [status, setStatus] = useState<"idle" | "loading" | "saving" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [recoveryDraft, setRecoveryDraft] = useState<string | null>(null);
 
   const dirty = content !== savedContent;
-  const title = `${dirty ? "*" : ""}${fileName(filePath)} - Markdown Editor`;
+  const recoveryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const title = `${dirty ? "*" : ""}${fileName(filePath)} - Just Markdown: Gold Edition`;
   const pathLabel = filePath ?? "Unsaved local Markdown file";
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export default function App() {
 
   const openPath = useCallback(
     async (nextPath: string) => {
-      window.markdownFiles.log("info", "openPath requested", { filePath: nextPath });
+      console.log("openPath requested", { filePath: nextPath });
       if (!(await confirmBeforeLosingChanges())) return;
       setStatus("loading");
       setError(null);
@@ -100,9 +102,9 @@ export default function App() {
         setContent(doc.content);
         setSavedContent(doc.content);
         setStatus("idle");
-        window.markdownFiles.log("info", "openPath loaded", { filePath: doc.filePath, chars: doc.content.length });
+        console.log("openPath loaded", { filePath: doc.filePath, chars: doc.content.length });
       } catch (e) {
-        window.markdownFiles.log("error", "openPath failed", {
+        console.error("openPath failed", {
           filePath: nextPath,
           message: (e as Error).message,
           stack: (e as Error).stack,
@@ -128,31 +130,84 @@ export default function App() {
     setStatus("idle");
   }, [confirmBeforeLosingChanges]);
 
+  // --- Native menu listeners ---
+
+  useEffect(() => {
+    return window.markdownFiles.onMenuNew(() => void newDoc());
+  }, [newDoc]);
+
+  useEffect(() => {
+    return window.markdownFiles.onMenuOpen(() => void openDialog());
+  }, [openDialog]);
+
+  useEffect(() => {
+    return window.markdownFiles.onMenuSave(() => void save());
+  }, [save]);
+
+  useEffect(() => {
+    return window.markdownFiles.onMenuSaveAs(() => void saveAs());
+  }, [saveAs]);
+
+  useEffect(() => {
+    return window.markdownFiles.onMenuTogglePreview(() => setLivePreview((p) => !p));
+  }, []);
+
+  useEffect(() => {
+    return window.markdownFiles.onMenuOpenRecent((recentPath) => void openPath(recentPath));
+  }, [openPath]);
+
+  useEffect(() => {
+    return window.markdownFiles.onMenuFind(() => findInEditor());
+  }, []);
+
+  useEffect(() => {
+    window.markdownFiles.setLivePreview(livePreview).catch(() => {});
+  }, [livePreview]);
+
   useEffect(() => {
     void window.markdownFiles.getPendingOpen().then((nextPath) => {
-      if (nextPath) void openPath(nextPath);
+      if (nextPath) {
+        void openPath(nextPath);
+      } else {
+        // ponytail: recovery draft only on fresh launch with no file to open
+        void window.markdownFiles.getRecoveryDraft().then((draft) => {
+          if (draft) setRecoveryDraft(draft);
+        });
+      }
     });
     return window.markdownFiles.onOpenRequest((nextPath) => void openPath(nextPath));
   }, [openPath]);
 
+  // ── Debounced recovery-draft save while dirty ──
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const mod = event.ctrlKey || event.metaKey;
-      if (!mod) return;
-      if (event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        void save();
-      } else if (event.key.toLowerCase() === "o") {
-        event.preventDefault();
-        void openDialog();
-      } else if (event.key.toLowerCase() === "n") {
-        event.preventDefault();
-        void newDoc();
-      }
+    if (!dirty) {
+      void window.markdownFiles.clearRecoveryDraft();
+      return;
+    }
+    if (recoveryTimer.current) clearTimeout(recoveryTimer.current);
+    recoveryTimer.current = setTimeout(() => {
+      recoveryTimer.current = null;
+      void window.markdownFiles.saveRecoveryDraft(content);
+    }, 2000);
+    return () => {
+      if (recoveryTimer.current) clearTimeout(recoveryTimer.current);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [newDoc, openDialog, save]);
+  }, [dirty, content]);
+
+  const restoreRecovery = useCallback(() => {
+    if (!recoveryDraft) return;
+    setContent(recoveryDraft);
+    setSavedContent(EMPTY_DOC); // still dirty — no real file yet
+    setFilePath(null);
+    setRecoveryDraft(null);
+    setError(null);
+    setStatus("idle");
+  }, [recoveryDraft]);
+
+  const dismissRecovery = useCallback(() => {
+    setRecoveryDraft(null);
+    void window.markdownFiles.clearRecoveryDraft();
+  }, []);
 
   const statusText = useMemo(() => {
     if (status === "loading") return "loading";
@@ -216,10 +271,19 @@ export default function App() {
         <span>{content.length.toLocaleString()} chars</span>
         <span>Ctrl+B/I</span>
         <span>Ctrl+Alt+1/2/3</span>
+        <span>Ctrl+Shift+./8/7</span>
         <span>Ctrl+F</span>
       </div>
 
       {error ? <div className="error-strip">{error}</div> : null}
+
+      {recoveryDraft ? (
+        <div className="recovery-strip">
+          <span>Recovery draft found — unsaved changes from a previous session.</span>
+          <button type="button" className="tool-button primary" onClick={restoreRecovery}>Restore</button>
+          <button type="button" className="tool-button" onClick={dismissRecovery}>Dismiss</button>
+        </div>
+      ) : null}
 
       <DurableEditor
         key={positionKey(filePath)}

@@ -228,6 +228,23 @@ button:disabled {
   font: 12px/1.4 var(--font-mono);
 }
 
+.recovery-strip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 10%, var(--panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 38%, var(--border));
+  font: 12px/1.4 var(--font-mono);
+}
+
+.recovery-strip span {
+  flex: 1;
+  min-width: 0;
+}
+
 .statusbar {
   flex: none;
   min-height: 28px;
@@ -289,6 +306,11 @@ button:disabled {
 
 .editor-host .cm-searchMatch.cm-searchMatch-selected {
   background: color-mix(in srgb, var(--accent) 48%, transparent);
+}
+
+.editor-host .cm-selectionBackground,
+.editor-host .cm-content ::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .editor-host .cm-selectionMatch {

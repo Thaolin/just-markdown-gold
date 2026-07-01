@@ -1,8 +1,8 @@
 {
-  "name": "markdown-editor",
-  "version": "0.1.0",
+  "name": "just-markdown",
+  "version": "0.2.0",
   "private": true,
-  "description": "Lightweight local Markdown editor/viewer for Windows.",
+  "description": "Just Markdown: Gold Edition — a lightweight local Markdown editor for Windows.",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -35,7 +35,7 @@
   },
   "build": {
     "appId": "local.markdowneditor",
-    "productName": "Markdown Editor",
+    "productName": "Just Markdown: Gold Edition",
     "directories": {
       "output": "release"
     },
@@ -69,7 +69,9 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": null
     }
   }
 }

@@ -3,9 +3,10 @@ import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
-import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
+import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { markdownLivePreview } from "./livePreview";
 import { markdownKeybindings } from "./markdownKeymap";
+import { selectionToHtml } from "./copyHtml";
 
 export interface DurableEditorProps {
   value: string;
@@ -82,6 +83,12 @@ function applySavedPos(view: EditorView, key: string, doc: string): void {
   restoreTopScroll(view, top, 12, -1);
 }
 
+let currentEditorView: EditorView | null = null;
+
+export function findInEditor(): void {
+  if (currentEditorView) openSearchPanel(currentEditorView);
+}
+
 export default function DurableEditor({
   value,
   onChange,
@@ -132,7 +139,28 @@ export default function DurableEditor({
           if (u.docChanged) onChangeRef.current(u.state.doc.toString());
           if (u.docChanged || u.selectionSet) persistCurrent(u.view);
         }),
-        EditorView.domEventHandlers({ scroll: (_event, view) => persistCurrent(view) }),
+        EditorView.domEventHandlers({
+          scroll: (_event, view) => persistCurrent(view),
+          paste: (event, view) => {
+            // ponytail: strip rich-text HTML, keep only plain text — Markdown stays Markdown
+            const html = event.clipboardData?.getData("text/html");
+            if (!html) return false;
+            event.preventDefault();
+            const text = event.clipboardData?.getData("text/plain") ?? "";
+            view.dispatch(view.state.replaceSelection(text));
+            return true;
+          },
+          copy: (event, view) => {
+            const sel = view.state.selection.main;
+            if (sel.empty) return false; // let browser handle (e.g. copy in search panel)
+            const html = selectionToHtml(view.state, sel.from, sel.to);
+            if (!html) return false;
+            event.preventDefault();
+            event.clipboardData?.setData("text/plain", view.state.sliceDoc(sel.from, sel.to));
+            event.clipboardData?.setData("text/html", html);
+            return true;
+          },
+        }),
       ],
     });
   }
@@ -146,12 +174,14 @@ export default function DurableEditor({
     if (!hostRef.current) return;
     const view = new EditorView({ state: buildState(value), parent: hostRef.current });
     viewRef.current = view;
+    currentEditorView = view;
     applySavedPos(view, docKey, value);
     return () => {
       cancelPersist();
       saveViewPos(view, docKey);
       view.destroy();
       viewRef.current = null;
+      if (currentEditorView === view) currentEditorView = null;
     };
     // Remount per document key; current value is the initial file bytes for that mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
