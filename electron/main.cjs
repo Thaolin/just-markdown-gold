@@ -11,19 +11,78 @@ let closePromptActive = false;
 let livePreviewEnabled = true;
 
 const recoveryPath = path.join(app.getPath("userData"), "recovery-draft.md");
+const recentFilesPath = path.join(app.getPath("userData"), "recent-files.json");
+
+function normalizeRecentKey(filePath) {
+  const resolved = path.resolve(filePath);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+function readRecentFiles() {
+  try {
+    const parsed = JSON.parse(fsSync.readFileSync(recentFilesPath, "utf8"));
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set();
+    const files = [];
+    for (const item of parsed) {
+      if (typeof item !== "string" || !isMarkdownPath(item) || !fsSync.existsSync(item)) continue;
+      const resolved = path.resolve(item);
+      const key = normalizeRecentKey(resolved);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      files.push(resolved);
+      if (files.length >= 10) break;
+    }
+    return files;
+  } catch {
+    return [];
+  }
+}
+
+function writeRecentFiles(filePaths) {
+  try {
+    fsSync.mkdirSync(path.dirname(recentFilesPath), { recursive: true });
+    fsSync.writeFileSync(recentFilesPath, JSON.stringify(filePaths, null, 2), "utf8");
+  } catch (error) {
+    log("recent files write error", { message: error.message });
+  }
+}
+
+function rememberRecentFile(filePath) {
+  if (!isMarkdownPath(filePath)) return;
+  const resolved = path.resolve(filePath);
+  if (!fsSync.existsSync(resolved)) return;
+  const key = normalizeRecentKey(resolved);
+  const rest = readRecentFiles().filter((recentPath) => normalizeRecentKey(recentPath) !== key);
+  const next = [resolved, ...rest].slice(0, 10);
+  writeRecentFiles(next);
+}
+
+function clearRecentFiles() {
+  try { fsSync.unlinkSync(recentFilesPath); } catch { /* may not exist */ }
+  try { app.clearRecentDocuments(); } catch { /* best-effort */ }
+  refreshMenu();
+}
 
 function buildRecentFilesMenu() {
-  const recentDocs = app.getRecentDocuments();
+  const recentDocs = readRecentFiles();
   if (recentDocs.length === 0) {
     return [{ label: "No recent files", enabled: false }];
   }
-  return recentDocs.slice(0, 10).map((filePath) => ({
-    label: path.basename(filePath),
-    tooltip: filePath,
-    click: () => {
-      if (mainWindow) mainWindow.webContents.send("menu:open-recent", filePath);
+  return [
+    ...recentDocs.slice(0, 10).map((filePath) => ({
+      label: path.basename(filePath),
+      tooltip: filePath,
+      click: () => {
+        if (mainWindow) mainWindow.webContents.send("menu:open-recent", filePath);
+      },
+    })),
+    { type: "separator" },
+    {
+      label: "Clear Recent Files",
+      click: clearRecentFiles,
     },
-  }));
+  ];
 }
 
 function buildMenu() {
@@ -299,7 +358,9 @@ ipcMain.handle("file:read", async (_event, filePath) => {
   try {
     const content = await fs.readFile(filePath, "utf8");
     log("file:read success", { filePath, chars: content.length });
-    try { app.addRecentDocument(filePath); refreshMenu(); } catch { /* best-effort */ }
+    rememberRecentFile(filePath);
+    try { app.addRecentDocument(filePath); } catch { /* best-effort */ }
+    refreshMenu();
     return { filePath, content };
   } catch (error) {
     log("file:read error", { filePath, message: error.message, stack: error.stack });
@@ -310,6 +371,9 @@ ipcMain.handle("file:read", async (_event, filePath) => {
 ipcMain.handle("file:save", async (_event, payload) => {
   await fs.writeFile(payload.filePath, payload.content ?? "", "utf8");
   try { fsSync.unlinkSync(recoveryPath); } catch { /* may not exist */ }
+  rememberRecentFile(payload.filePath);
+  try { app.addRecentDocument(payload.filePath); } catch { /* best-effort */ }
+  refreshMenu();
   return { filePath: payload.filePath };
 });
 
@@ -325,7 +389,9 @@ ipcMain.handle("file:save-as", async (_event, payload) => {
   if (result.canceled || !result.filePath) return null;
   await fs.writeFile(result.filePath, payload.content ?? "", "utf8");
   try { fsSync.unlinkSync(recoveryPath); } catch { /* may not exist */ }
-  try { app.addRecentDocument(result.filePath); refreshMenu(); } catch { /* best-effort */ }
+  rememberRecentFile(result.filePath);
+  try { app.addRecentDocument(result.filePath); } catch { /* best-effort */ }
+  refreshMenu();
   return { filePath: result.filePath };
 });
 
