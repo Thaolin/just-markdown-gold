@@ -36,6 +36,15 @@ These are the next functions that fit the product boundary:
 
 - Auto-update for installed builds. Useful for dogfooding, but not part of the core editor surface.
 
+## 0.4.0 UI Pass
+
+- Use an Impeccable product-register pass to polish the existing shell without expanding scope.
+- Keep familiar desktop affordances: native menu, direct toolbar actions, clear status, obvious file identity.
+- Add or refine visible states for hover, focus, active, disabled, dirty, saving, error, and recovery.
+- Review keyboard-first flows for New, Open, Save, Save As, Find, Live Preview, and close prompts.
+- Verify the app on narrow laptop, normal desktop, and ultrawide layouts.
+- Do not add dashboards, sidebars, onboarding tours, or decorative UI just because a release needs polish.
+
 ## Things To Avoid
 
 - Workspaces.

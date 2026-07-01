@@ -97,9 +97,56 @@ Do not turn this into:
    - Better link/image HTML copy.
    - More Markdown constructs in Live Preview.
 
+## 0.4.0 Docket
+
+1. macOS And Linux Packaging
+   - Add explicit package scripts:
+     - `dist:win`
+     - `dist:mac`
+     - `dist:linux`
+     - `dist:all`
+   - Add GitHub Actions release builds:
+     - Windows runner builds NSIS `.exe`.
+     - macOS runner builds `.dmg` and `.zip`.
+     - Ubuntu runner builds AppImage and Flatpak bundle.
+   - Add macOS packaging assets:
+     - `.icns` icon.
+     - File association metadata for `.md` and `.markdown`.
+     - Unsigned local build first, signing and notarization later.
+   - Add Linux packaging assets:
+     - AppImage for the easiest first Linux download.
+     - Flatpak bundle for the "probably runs on your fridge" bit.
+     - Linux icon sizes, `.desktop` metadata, and Markdown MIME associations.
+   - Update README with a platform table and release artifact notes.
+
+2. Full UI Pass With Impeccable
+   - Treat the app as a restrained product UI: familiar controls, low ceremony, fast task flow.
+   - Audit the full shell:
+     - Top bar hierarchy.
+     - Toolbar button states.
+     - Status/substatus bars.
+     - Recovery strip.
+     - Empty/new document state.
+     - Recent files and native menu copy.
+     - Focus states and keyboard-first use.
+     - Narrow, normal, and ultrawide layout behavior.
+   - Tighten visual rules:
+     - Consistent button vocabulary.
+     - Clear hover, active, focus, disabled, and loading states.
+     - No decorative panels, fake dashboards, or feature theater.
+     - Keep the writing surface sincere even while the repo voice gets ridiculous.
+   - Verify with screenshots before shipping.
+
+3. Platform Reality Notes
+   - Android is not an Electron packaging target.
+   - Keep Android / WebView / smartfridge as a future experiment, not part of 0.4.0.
+   - Marketing line can be funny; support matrix should stay honest.
+
 ## Maybe Later
 
 - Auto-update, so an installed copy can quietly keep up with small fixes.
+- Android or WebView companion experiment.
+- Smaller-runtime investigation if Electron install size becomes a real blocker.
 
 ## Public Repo Checklist
 

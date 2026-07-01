@@ -78,6 +78,17 @@ The installer is written to `release/` and is intentionally ignored by Git. Publ
 
 Windows file associations for `.md` and `.markdown` are configured in `package.json` through `electron-builder`.
 
+## Platform Roadmap
+
+| Platform | Status |
+| --- | --- |
+| Windows | Supported with NSIS installer. |
+| macOS | Planned for `0.4.0` with DMG/ZIP builds. Signing and notarization can follow. |
+| Linux | Planned for `0.4.0` with AppImage and Flatpak builds. |
+| Android | Not an Electron target. Future experiment, mostly for the smartfridge joke. |
+
+Will it run on a smartfridge? If the fridge runs Linux, Android, or a browser and has opinions about Markdown, probably eventually.
+
 ## License
 
 MIT. Do what you need. Try not to turn it into a graph database with a toolbar.
