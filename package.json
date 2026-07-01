@@ -1,8 +1,18 @@
 {
   "name": "just-markdown",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Just Markdown: Gold Edition — a lightweight local Markdown editor for Windows.",
+  "description": "Just Markdown: Gold Edition - a lightweight local Markdown editor for Windows.",
+  "license": "MIT",
+  "author": "MattC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Thaolin/just-markdown-gold.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Thaolin/just-markdown-gold/issues"
+  },
+  "homepage": "https://github.com/Thaolin/just-markdown-gold#readme",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
