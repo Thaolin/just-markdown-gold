@@ -48,6 +48,55 @@ Do not turn this into:
    - Style common Markdown constructs cleanly.
    - Avoid adding modes, sidebars, or workflows unless daily use demands them.
 
+## 0.3.0 Docket
+
+1. Commit Current Polish
+   - Word count.
+   - Narrower reading measure.
+   - Better reading font and margins.
+
+2. Installer And Version Hygiene
+   - Remove old `Markdown Editor Setup 0.1.0.exe` artifacts from `release/`.
+   - Decide whether `release/` stays ignored or whether GitHub releases carry installers only.
+
+3. File-Open Confidence Pass
+   - File menu Open.
+   - Toolbar Open.
+   - Double-click `.md`.
+   - Right-click Open With.
+   - Second file while app is already running.
+   - Recent files menu.
+
+4. Recovery Confidence Pass
+   - Crash or kill with unsaved text.
+   - Restore.
+   - Dismiss.
+   - Open real file while recovery strip exists.
+   - New document while recovery strip exists.
+   - Save As cancel during close.
+
+5. Basic Settings, Maybe
+   - No settings screen yet.
+   - Menu-level toggles only if they earn their keep:
+     - Live Preview, already there.
+     - Font size: Smaller / Default / Larger.
+     - Reading width: Narrow / Standard / Wide.
+
+6. Tiny Public Repo Polish
+   - Add LICENSE.
+   - Add CHANGELOG.md.
+   - Make the README a bit more unhinged, in the "Just a freakin' Markdown editor GOLD EDITION" spirit.
+   - Add the logo to the README.
+   - Add a screenshot to the README once the right shot exists.
+   - Tag `v0.3.0`.
+   - Upload installer to GitHub release.
+
+7. Deferred / Maybe Pile
+   - Auto-update, so an installed copy can quietly keep up with small fixes.
+   - Per-file recovery.
+   - Better link/image HTML copy.
+   - More Markdown constructs in Live Preview.
+
 ## Maybe Later
 
 - Auto-update, so an installed copy can quietly keep up with small fixes.
@@ -60,4 +109,4 @@ Do not turn this into:
 - CHANGELOG.md.
 - GitHub release with Windows installer.
 - GitHub remote plus Gitea mirror remote.
-- Tag the first public release as `v0.1.0`.
+- Tag the first public release as `v0.3.0`.

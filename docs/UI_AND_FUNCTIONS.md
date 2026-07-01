@@ -4,7 +4,7 @@
 
 - The editor is the product. Chrome should stay quiet.
 - The top bar shows document identity, path, dirty state, and file commands.
-- The status areas should answer: saved or modified, character count, and current mode.
+- The status areas should answer: saved or modified, word count, and current mode.
 - Gold Edition belongs in the name, icon, installer, and About dialog. The writing surface stays sincere.
 - No decorative panels, startup dashboards, or marketing screens inside the app.
 
