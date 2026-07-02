@@ -1,3 +1,10 @@
+import type {
+  EditorPreferenceResult,
+  FontSizePreference,
+  ReadingWidthPreference,
+  ThemePreference,
+} from "./preferences";
+
 export {};
 
 declare global {
@@ -22,9 +29,17 @@ declare global {
       onMenuSave: (callback: () => void) => () => void;
       onMenuSaveAs: (callback: () => void) => () => void;
       onMenuTogglePreview: (callback: () => void) => () => void;
+      onMenuFontSize: (callback: (fontSize: FontSizePreference) => void) => () => void;
+      onMenuReadingWidth: (callback: (readingWidth: ReadingWidthPreference) => void) => () => void;
+      onMenuTheme: (callback: (theme: ThemePreference) => void) => () => void;
       onMenuFind: (callback: () => void) => () => void;
       onMenuOpenRecent: (callback: (filePath: string) => void) => () => void;
       setLivePreview: (enabled: boolean) => Promise<void>;
+      setEditorPreferences: (preferences: {
+        fontSize: FontSizePreference;
+        readingWidth: ReadingWidthPreference;
+        theme: ThemePreference;
+      }) => Promise<EditorPreferenceResult>;
       saveRecoveryDraft: (content: string) => Promise<void>;
       getRecoveryDraft: () => Promise<string | null>;
       clearRecoveryDraft: () => Promise<void>;

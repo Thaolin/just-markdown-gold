@@ -52,6 +52,21 @@ contextBridge.exposeInMainWorld("markdownFiles", {
     ipcRenderer.on("menu:toggle-preview", callback);
     return () => ipcRenderer.removeListener("menu:toggle-preview", callback);
   },
+  onMenuFontSize: (callback) => {
+    const listener = (_event, fontSize) => callback(fontSize);
+    ipcRenderer.on("menu:set-font-size", listener);
+    return () => ipcRenderer.removeListener("menu:set-font-size", listener);
+  },
+  onMenuReadingWidth: (callback) => {
+    const listener = (_event, readingWidth) => callback(readingWidth);
+    ipcRenderer.on("menu:set-reading-width", listener);
+    return () => ipcRenderer.removeListener("menu:set-reading-width", listener);
+  },
+  onMenuTheme: (callback) => {
+    const listener = (_event, theme) => callback(theme);
+    ipcRenderer.on("menu:set-theme", listener);
+    return () => ipcRenderer.removeListener("menu:set-theme", listener);
+  },
   onMenuFind: (callback) => {
     ipcRenderer.on("menu:find", callback);
     return () => ipcRenderer.removeListener("menu:find", callback);
@@ -62,6 +77,7 @@ contextBridge.exposeInMainWorld("markdownFiles", {
     return () => ipcRenderer.removeListener("menu:open-recent", listener);
   },
   setLivePreview: (enabled) => ipcRenderer.invoke("menu:set-live-preview", enabled),
+  setEditorPreferences: (preferences) => ipcRenderer.invoke("menu:set-editor-preferences", preferences),
 
   // Crash recovery draft
   saveRecoveryDraft: (content) => ipcRenderer.invoke("app:save-recovery-draft", content),

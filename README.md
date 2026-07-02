@@ -24,6 +24,8 @@ Gold Edition is the joke. The editor is sincere.
 - A companion app for people who already use Obsidian, VS Code, or other heavier tools but sometimes just want the file.
 - A pleasant live-preview writing surface backed by plain Markdown on disk.
 - Direct Open, Save, Save As, Recent Files, and Windows file association support.
+- Toolbar buttons for common Markdown formatting: bold, italic, headings, quote, lists, and find.
+- Menu-level reading controls for font size, line width, and five themes.
 - Unsaved-change prompts and a simple recovery draft so daily use feels less haunted.
 - A tool that gets out of the way before it starts calling itself a second brain.
 
@@ -42,7 +44,11 @@ Gold Edition is the joke. The editor is sincere.
 
 Markdown stays the on-disk source of truth. Live Preview hides common Markdown marks while rendering prose styling, and raw marks reveal at the cursor so editing remains honest.
 
-Version `0.3.0` is the first public-polish target: README, license, changelog, screenshot, refreshed installer, and enough Windows file-open confidence to stop flinching every time Explorer gets involved.
+The app exposes the daily actions directly: file commands, basic Markdown formatting, Find, and Live Preview. The native View menu keeps the quiet reading preferences: themes, Smaller / Default / Larger font size, and Narrow / Standard / Wide reading width.
+
+Themes are intentionally small-scope except when they are not: Gold Standard, Midnight, Evergreen, Paper, and Power User. Power User goes full Apple II energy, including the monospace font.
+
+Version `0.3.0` is the current packaged Windows release: README, license, changelog, screenshot, refreshed installer, app-owned recent files, recovery drafts, toolbar formatting, reading preferences, themes, and enough Windows file-open confidence to stop flinching every time Explorer gets involved.
 
 See [docs/PRODUCT_PLAN.md](docs/PRODUCT_PLAN.md) and [docs/UI_AND_FUNCTIONS.md](docs/UI_AND_FUNCTIONS.md) for the intentionally small scope.
 
@@ -82,7 +88,7 @@ Windows file associations for `.md` and `.markdown` are configured in `package.j
 
 | Platform | Status |
 | --- | --- |
-| Windows | Supported with NSIS installer. |
+| Windows | Supported with NSIS installer. Latest local packaged release is `0.3.0`. |
 | macOS | Planned for `0.4.0` with DMG/ZIP builds. Signing and notarization can follow. |
 | Linux | Planned for `0.4.0` with AppImage and Flatpak builds. |
 | Android | Not an Electron target. Future experiment, mostly for the smartfridge joke. |

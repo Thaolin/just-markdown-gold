@@ -5,7 +5,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { markdownLivePreview } from "./livePreview";
-import { markdownKeybindings } from "./markdownKeymap";
+import { markdownKeybindings, runMarkdownCommand, type MarkdownCommand } from "./markdownKeymap";
 import { selectionToHtml } from "./copyHtml";
 
 export interface DurableEditorProps {
@@ -87,6 +87,14 @@ let currentEditorView: EditorView | null = null;
 
 export function findInEditor(): void {
   if (currentEditorView) openSearchPanel(currentEditorView);
+}
+
+export function formatInEditor(command: MarkdownCommand): void {
+  if (!currentEditorView) return;
+  if (!currentEditorView.dom.contains(document.activeElement)) {
+    currentEditorView.focus();
+  }
+  runMarkdownCommand(currentEditorView, command);
 }
 
 export default function DurableEditor({

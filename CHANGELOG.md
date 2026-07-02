@@ -10,6 +10,12 @@ All notable changes to Just Markdown: Gold Edition will be tracked here.
 - Added app-owned recent files so the menu only shows Markdown files opened by this app.
 - Swapped the status count from characters to words.
 - Tightened the reading measure and improved reading font/margins.
+- Added toolbar buttons for common Markdown formatting and Find.
+- Added View menu controls for editor font size and reading width.
+- Added five View menu themes: Gold Standard, Midnight, Evergreen, Paper, and Power User.
+- Hardened preference sync between renderer state and native menu checkmarks.
+- Replaced the blank `# Untitled` starter text with a small welcome document.
+- Refreshed the Gold Edition app icon.
 
 ## 0.2.0 - 2026-07-01
 

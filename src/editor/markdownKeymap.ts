@@ -4,6 +4,7 @@ import { EditorSelection, type ChangeSpec } from "@codemirror/state"
 import type { EditorView, KeyBinding } from "@codemirror/view"
 
 type Cmd = (view: EditorView) => boolean
+export type MarkdownCommand = "bold" | "italic" | "h1" | "h2" | "h3" | "quote" | "bulletList" | "numberedList"
 
 // Wrap selection with `mark` / unwrap if already wrapped / insert paired marks with cursor inside.
 // Known v1 edge: selecting `**bold**` then Ctrl+I strips one layer → `*bold*`. Acceptable.
@@ -97,13 +98,28 @@ function toggleLinePrefix(prefix: string): Cmd {
   }
 }
 
+const markdownCommands: Record<MarkdownCommand, Cmd> = {
+  bold: toggleInlineMark("**"),
+  italic: toggleInlineMark("*"),
+  h1: toggleHeading(1),
+  h2: toggleHeading(2),
+  h3: toggleHeading(3),
+  quote: toggleLinePrefix("> "),
+  bulletList: toggleLinePrefix("- "),
+  numberedList: toggleLinePrefix("1. "),
+}
+
+export function runMarkdownCommand(view: EditorView, command: MarkdownCommand): boolean {
+  return markdownCommands[command](view)
+}
+
 export const markdownKeybindings: KeyBinding[] = [
-  { key: "Ctrl-b", mac: "Cmd-b", run: toggleInlineMark("**"), preventDefault: true },
-  { key: "Ctrl-i", mac: "Cmd-i", run: toggleInlineMark("*"), preventDefault: true },
-  { key: "Ctrl-Alt-1", run: toggleHeading(1), preventDefault: true },
-  { key: "Ctrl-Alt-2", run: toggleHeading(2), preventDefault: true },
-  { key: "Ctrl-Alt-3", run: toggleHeading(3), preventDefault: true },
-  { key: "Ctrl-Shift-.", run: toggleLinePrefix("> "), preventDefault: true },
-  { key: "Ctrl-Shift-8", run: toggleLinePrefix("- "), preventDefault: true },
-  { key: "Ctrl-Shift-7", run: toggleLinePrefix("1. "), preventDefault: true },
+  { key: "Ctrl-b", mac: "Cmd-b", run: markdownCommands.bold, preventDefault: true },
+  { key: "Ctrl-i", mac: "Cmd-i", run: markdownCommands.italic, preventDefault: true },
+  { key: "Ctrl-Alt-1", run: markdownCommands.h1, preventDefault: true },
+  { key: "Ctrl-Alt-2", run: markdownCommands.h2, preventDefault: true },
+  { key: "Ctrl-Alt-3", run: markdownCommands.h3, preventDefault: true },
+  { key: "Ctrl-Shift-.", run: markdownCommands.quote, preventDefault: true },
+  { key: "Ctrl-Shift-8", run: markdownCommands.bulletList, preventDefault: true },
+  { key: "Ctrl-Shift-7", run: markdownCommands.numberedList, preventDefault: true },
 ]

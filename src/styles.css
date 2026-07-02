@@ -10,6 +10,7 @@
   --accent-weak: oklch(31% 0.05 184);
   --warn: oklch(77% 0.13 80);
   --bad: oklch(68% 0.15 22);
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-serif: Cambria, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
   --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
   --fs-small: 12px;
@@ -33,7 +34,7 @@ body,
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
   font-size: var(--fs-body);
 }
 
@@ -75,6 +76,145 @@ button:disabled {
   display: flex;
   flex-direction: column;
   background: var(--bg);
+  font-family: var(--font-ui);
+}
+
+.app-shell.theme-gold {
+  --bg: oklch(18% 0.008 252);
+  --panel: oklch(22% 0.01 252);
+  --panel-2: oklch(27% 0.012 252);
+  --panel-3: oklch(31% 0.014 252);
+  --border: oklch(37% 0.016 252);
+  --fg: oklch(94% 0.006 252);
+  --muted: oklch(70% 0.018 252);
+  --accent: oklch(75% 0.13 184);
+  --accent-weak: oklch(31% 0.05 184);
+  --warn: oklch(77% 0.13 80);
+  --bad: oklch(68% 0.15 22);
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: Cambria, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
+
+.app-shell.theme-midnight {
+  --bg: oklch(15% 0.018 265);
+  --panel: oklch(19% 0.022 265);
+  --panel-2: oklch(24% 0.026 265);
+  --panel-3: oklch(29% 0.03 265);
+  --border: oklch(38% 0.035 265);
+  --fg: oklch(94% 0.01 260);
+  --muted: oklch(69% 0.035 260);
+  --accent: oklch(73% 0.13 230);
+  --accent-weak: oklch(31% 0.065 230);
+  --warn: oklch(78% 0.13 75);
+  --bad: oklch(68% 0.15 20);
+}
+
+.app-shell.theme-evergreen {
+  --bg: oklch(17% 0.02 155);
+  --panel: oklch(22% 0.024 155);
+  --panel-2: oklch(27% 0.028 155);
+  --panel-3: oklch(32% 0.032 155);
+  --border: oklch(39% 0.04 155);
+  --fg: oklch(94% 0.012 145);
+  --muted: oklch(71% 0.035 150);
+  --accent: oklch(77% 0.13 145);
+  --accent-weak: oklch(32% 0.07 145);
+  --warn: oklch(78% 0.14 88);
+  --bad: oklch(67% 0.14 25);
+}
+
+.app-shell.theme-paper {
+  --bg: oklch(96% 0.008 88);
+  --panel: oklch(92% 0.012 88);
+  --panel-2: oklch(88% 0.014 88);
+  --panel-3: oklch(84% 0.016 88);
+  --border: oklch(74% 0.024 88);
+  --fg: oklch(24% 0.018 250);
+  --muted: oklch(48% 0.025 250);
+  --accent: oklch(50% 0.115 190);
+  --accent-weak: oklch(86% 0.045 190);
+  --warn: oklch(55% 0.13 78);
+  --bad: oklch(54% 0.15 25);
+}
+
+.app-shell.theme-power-user {
+  --bg: oklch(8% 0.035 145);
+  --panel: oklch(11% 0.048 145);
+  --panel-2: oklch(14% 0.06 145);
+  --panel-3: oklch(18% 0.075 145);
+  --border: oklch(55% 0.18 145);
+  --fg: oklch(84% 0.24 142);
+  --muted: oklch(66% 0.16 142);
+  --accent: oklch(88% 0.27 142);
+  --accent-weak: oklch(20% 0.11 142);
+  --warn: oklch(84% 0.2 105);
+  --bad: oklch(75% 0.2 32);
+  --font-ui: "Courier New", "Lucida Console", "Cascadia Mono", monospace;
+  --font-serif: "Courier New", "Lucida Console", "Cascadia Mono", monospace;
+  --font-mono: "Courier New", "Lucida Console", "Cascadia Mono", monospace;
+}
+
+.app-shell.theme-power-user {
+  text-shadow: 0 0 5px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.app-shell.theme-power-user button,
+.app-shell.theme-power-user input,
+.app-shell.theme-power-user .identity strong,
+.app-shell.theme-power-user .status-pill {
+  text-transform: uppercase;
+}
+
+.app-shell.theme-power-user button,
+.app-shell.theme-power-user .tool-group,
+.app-shell.theme-power-user .cm-textfield,
+.app-shell.theme-power-user .cm-button {
+  border-radius: 0;
+}
+
+.app-shell.theme-power-user .tool-button.primary {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  text-shadow: none;
+}
+
+.app-shell.theme-power-user .editor-host .cm-content {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.app-shell.theme-power-user .editor-host .cm-md-mark {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.app-shell.font-smaller {
+  --fs-read: 16px;
+  --lh-read: 1.7;
+}
+
+.app-shell.font-default {
+  --fs-read: 18px;
+  --lh-read: 1.75;
+}
+
+.app-shell.font-larger {
+  --fs-read: 20px;
+  --lh-read: 1.7;
+}
+
+.app-shell.measure-narrow {
+  --measure: 58ch;
+}
+
+.app-shell.measure-standard {
+  --measure: 68ch;
+}
+
+.app-shell.measure-wide {
+  --measure: 82ch;
 }
 
 .topbar {
@@ -136,6 +276,8 @@ button:disabled {
   flex: none;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
   gap: 10px;
 }
 
@@ -177,6 +319,27 @@ button:disabled {
 
 .tool-button.primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent-weak) 82%, var(--panel));
+}
+
+.format-group {
+  gap: 2px;
+}
+
+.tool-button.icon-button {
+  width: 32px;
+  min-width: 32px;
+  padding-inline: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.tool-button.icon-button em {
+  font-family: var(--font-serif);
+  font-weight: 700;
+}
+
+.tool-button.find-button {
+  min-width: 50px;
 }
 
 .toggle {
@@ -462,6 +625,14 @@ button:disabled {
 
   .tool-button {
     flex: 1 1 0;
+  }
+
+  .format-group .tool-button.icon-button {
+    flex: 0 0 32px;
+  }
+
+  .format-group .tool-button.find-button {
+    flex: 1 1 52px;
   }
 
   .toggle {

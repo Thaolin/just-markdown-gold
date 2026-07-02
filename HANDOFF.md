@@ -1,239 +1,155 @@
-# Handoff — Next Quick Wins
+# Handoff - Current Quick Wins
 
-## Current Project State (v0.1.0)
+## Current Project State
 
-### What ships in this build
+The repo is on `main` and `v0.3.0` is the final public-polish release: recovery drafts, app-owned recent files, toolbar formatting, View-menu reading preferences, themes, preference sync, a welcome starter document, refreshed docs, and the refreshed Gold Edition icon.
+
+`package.json` reports `0.3.0`, and the latest local packaged installer is `release/Just Markdown Gold Edition Setup 0.3.0.exe`. The generated installer remains ignored by Git and should be attached to the release rather than committed.
+
+### What Ships In `v0.3.0`
 
 | Area | Status |
 |---|---|
-| **New / Open / Save / Save As** | ✅ Working — native dialogs, file-association support |
-| **Unsaved-change prompts** | ✅ All four triggers: New, Open, file-association open, window close |
-| **Live Preview** | ✅ Hand-rolled CM6 plugin — hides syntax marks, renders prose, reveals at cursor |
-| **Markdown keybindings** | ✅ Ctrl+B/I, Ctrl+Alt+1/2/3, Ctrl+Shift+./8/7 |
-| **Dirty tracking + title dot** | ✅ Window title, status pill, dirty dot |
-| **Cursor/scroll persistence** | ✅ Per-file via localStorage |
-| **Native menu** | ✅ File (New/Open/Save/SaveAs/Recent/Exit), Edit (Undo/Redo/Cut/Copy/Paste/SelectAll/Find), View (Live Preview), Help (About) |
-| **Recent files** | ✅ Uses Electron `app.addRecentDocument()` + `app.getRecentDocuments()` |
-| **About dialog** | ✅ Shows version, tagline, icon |
-| **File-based logging** | ✅ Session-demarcated, auto-trimming log in `userData` |
-| **Single-instance lock** | ✅ Prevents duplicate windows |
-| **Error capture** | ✅ `uncaughtException`, `unhandledRejection`, `did-fail-load`, `render-process-gone`, `console-message` all logged |
-| **Windows installer** | ✅ `electron-builder` NSIS with file associations |
-| **Window icon** | ✅ Custom .ico baked into build |
+| **New / Open / Save / Save As** | Working with native dialogs and file-association support |
+| **Unsaved-change prompts** | New, Open, file-association open, and window close |
+| **Live Preview** | Hand-rolled CM6 plugin hides common syntax marks, renders prose, reveals marks at cursor |
+| **Markdown keybindings** | Ctrl+B/I, Ctrl+Alt+1/2/3, Ctrl+Shift+./8/7 |
+| **Dirty tracking** | Window title marker, status pill, dirty dot |
+| **Cursor/scroll persistence** | Per file via localStorage |
+| **Native menu** | File, Edit, View, Help with Recent Files, Find, Live Preview, and About |
+| **Recent files** | App-owned list stored in `userData/recent-files.json`, capped at 10, filtered to existing Markdown-ish files |
+| **Recovery draft** | Global `userData/recovery-draft.md`, restored only after explicit user opt-in |
+| **Paste/copy behavior** | Rich-text paste is stripped to plain text; Markdown copy can include basic HTML |
+| **About dialog** | Shows version, tagline, and app icon |
+| **File-based logging** | Session-demarcated, auto-trimming log in `userData/markdown-editor.log` |
+| **Single-instance lock** | Second-instance file opens route into the existing window |
+| **Error capture** | Main errors, renderer load failures, renderer exits, and renderer console messages are logged |
+| **Windows installer** | `electron-builder` NSIS with `.md` and `.markdown` file associations |
+| **Toolbar formatting** | Buttons for bold, italic, H1-H3, quote, bullet list, numbered list, and Find |
+| **Welcome starter document** | New untitled documents start with a short welcome note instead of `# Untitled` |
+| **View menu preferences** | Theme, Font Size, and Reading Width radio menus |
+| **Themes** | Gold Standard, Midnight, Evergreen, Paper, Power User |
+| **Preference persistence** | localStorage-backed theme/font/measure values sync back to native menu checkmarks |
+| **Window icon** | Refreshed custom `.ico` included in the app and installer |
 
-### Key architecture decisions (preserve these)
+## Architecture Decisions To Preserve
 
-- **Markdown is the truth** — no hidden state, no document model, no WYSIWYG storage format
-- **CM6 source buffer is byte-identical Markdown** — the Live Preview plugin only produces `DecorationSet` ranges, never dispatches doc changes
-- **IPC bridge** — `contextIsolation: true`, single preload (`preload.cjs`) exposing `window.markdownFiles` methods
-- **Logging** — single capture path via `console-message` listener in main process; renderer errors use `console.error`; log auto-trims to ~10K lines
-- **No sandbox on BrowserWindow** — pre-existing; adding it would break the preload bridge pattern
+- Markdown is the truth: no hidden document model and no WYSIWYG storage format.
+- CM6 source buffer remains byte-identical Markdown; Live Preview only decorates visible ranges.
+- The IPC bridge uses `contextIsolation: true`, `nodeIntegration: false`, and one preload file exposing `window.markdownFiles`.
+- Renderer errors should flow through console logging so the main-process log captures them.
+- Local comfort state can live in localStorage; user content and recovery drafts stay in files.
+- Avoid dashboards, sidebars, workspace concepts, cloud sync, plugin systems, and account surfaces.
 
----
+## Next Quick Wins
 
-## Quick Wins — Ordered by Effort & Impact
+### 1. Installer Upgrade And Uninstall Verification
 
-### 1. Crash Recovery Draft ⭐ Highest Priority
+**Roadmap fit**: Trust priority, release confidence.
 
-**Roadmap fit**: Trust priority #1, Daily-Driver function
+**Current state**: NSIS config exists with `oneClick: false`, `perMachine: false`, and `allowToChangeInstallationDirectory: true`. Recovery drafts, recent files, and logs live under Electron `userData`, so app upgrades should leave them alone.
 
-**What to do**: Save a recovery draft to `userData` whenever the editor has unsaved changes. On startup, if a recovery draft exists AND there's no file opened via argv/association, offer to restore.
+**Manual QA pass**:
 
-**Implementation sketch**:
+1. Build the installer with `npm run dist`.
+2. Install over an existing installed copy.
+3. Open and save a Markdown file from Explorer and from the app.
+4. Kill the app with unsaved text and verify recovery prompt on next clean launch.
+5. Uninstall and verify the app is removed while `userData` behavior is understood and documented.
+6. Record findings in `docs/INSTALLER_QA.md` if anything surprising happens.
 
-```
-main.cjs changes:
-  - Recovery path: path.join(app.getPath("userData"), "recovery-draft.md")
-  - New IPC "app:save-recovery-draft" handler — writes content to recovery path
-  - New IPC "app:get-recovery-draft" — reads and returns content (or null)
-  - New IPC "app:clear-recovery-draft" — deletes the file
-  - Auto-save recovery on window close / crash (debounced)
+### 2. Renderer Sandbox Hardening
 
-App.tsx changes:
-  - On mount, check for recovery draft if no file is being opened
-  - Show "Recovery draft found" UI (a notice bar, not a modal — keep it calm)
-  - Debounced recovery save when content changes while dirty
-```
+**Roadmap fit**: Reliability/security hardening.
 
-**Files to touch**: `main.cjs`, `preload.cjs`, `global.d.ts`, `App.tsx`, `browserFallback.ts`
+**Current state**: `BrowserWindow` uses `contextIsolation: true` and `nodeIntegration: false`, but does not set `sandbox: true`.
 
-**Risks**: Don't overwrite the user's actual file with recovery content. The recovery draft should ONLY be loaded when the user explicitly opts in. Clear it on successful save or explicit discard.
-
----
-
-### 2. Empty-File / First-Run State
-
-**Roadmap fit**: Daily-Driver function, polish
-
-**Current behavior**: On fresh launch (no argv file), shows `# Untitled\n\n` as the editor content. The placeholder "Write Markdown..." text shows in the empty editor.
-
-**What to make better**: A calm welcome state that introduces the app's personality without being a dashboard. Something subtle — maybe a centered message in the editor area that fades when you start typing.
-
-**Implementation sketch**:
-
-```
-Keep it simple — no startup screen, no modal. Two options:
-
-Option A (leanest): Replace the CM placeholder text with a multi-line
-greeting in the initial empty doc:
-  # Welcome to Just Markdown: Gold Edition
-  Open a file or start typing.
-
-  The Markdown editor arms race is over. This one opens files.
-
-Option B (slightly more polish): Use CM's placeholder extension with
-styled HTML. Already imported — just customize the text and styling.
-```
-
-**Files to touch**: `App.tsx` (EMPTY_DOC constant) or `DurableEditor.tsx` (placeholder string)
-
-**Risks**: None. Don't over-build this — it should not become a startup dashboard.
-
----
-
-### 3. Paste as Plain Markdown
-
-**Roadmap fit**: Priority 3 — Small Editor Improvements
-
-**Current behavior**: CM6's default paste handler pastes whatever is in the clipboard. If you copy rich text from a browser, the paste may include HTML fragments that CM6's Markdown parser processes unpredictably.
-
-**What to do**: Intercept paste events in CM6 and strip rich text formatting, leaving only plain text. The user pastes Markdown source always.
-
-**Implementation sketch**:
-
-```
-In DurableEditor.tsx, add to the editor extensions:
-
-EditorView.domEventHandlers({
-  paste: (event, view) => {
-    // Only intercept if there's rich text in the clipboard
-    const html = event.clipboardData?.getData("text/html");
-    if (!html) return false; // let plain-text paste through normally
-    event.preventDefault();
-    const text = event.clipboardData?.getData("text/plain") ?? "";
-    view.dispatch(view.state.replaceSelection(text));
-    return true;
-  },
-})
-```
-
-**Files to touch**: `DurableEditor.tsx` only
-
-**Risks**: Minimal. Keep the `text/html` check so plain-text-only pastes (from code editors, terminals) pass through unmodified — those are already clean Markdown.
-
----
-
-### 4. Installer Upgrade & Uninstall Verification
-
-**Roadmap fit**: Trust priority #1, Daily-Driver function
-
-**Current state**: `electron-builder` NSIS config exists with `oneClick: false`, `perMachine: false`, `allowToChangeInstallationDirectory: true`. But there's no verification that upgrades preserve user data (recovery drafts, log files go to `userData`, which is separate — so they should survive).
-
-**What to do**: Verify the installer behavior:
-
-1. **Build and install** — run `npm run dist`, install the NSIS output
-2. **Create a file, make edits** — verify unsaved-changes prompt works in installed build
-3. **Upgrade test** — install over the same path with a newer version number
-4. **Uninstall test** — verify uninstall removes the app but NOT `userData` (where recovery drafts + logs live)
-5. **File association test** — double-click `.md` in Explorer, verify it opens in the editor
-
-**This is a manual QA pass**, not code changes. Document results in `docs/INSTALLER_QA.md`.
-
-**Files to touch**: Maybe none — document findings. If file associations are broken, fix `package.json` `build.win.fileAssociations`.
-
----
-
-### 5. Sandbox the Renderer (Hardening)
-
-**Roadmap fit**: "Reliability beats novelty" / Windows desktop quality
-
-**Current state**: `BrowserWindow` has `contextIsolation: true` and `nodeIntegration: false`, but no `sandbox: true`. Electron docs recommend sandbox for new apps.
-
-**What to do**: Enable `sandbox: true` in `webPreferences`. This restricts the renderer further but requires the preload script to be sandbox-compatible — and the preload in this app only uses `contextBridge` + `ipcRenderer`, which **are** sandbox-compatible. So it should be a one-line toggle.
-
-**Implementation sketch**:
+**What to try**:
 
 ```cjs
 webPreferences: {
   preload: path.join(__dirname, "preload.cjs"),
   contextIsolation: true,
   nodeIntegration: false,
-  sandbox: true,         // ← add this
+  sandbox: true,
 }
 ```
 
-**Test**: Verify the app still launches, menu works, files open/save, About dialog appears.
+**Test**: Launch, open/save files, use all menu commands, verify recovery draft IPC, and confirm renderer logs still reach `markdown-editor.log`.
 
-**Risks**: Low for this app — you're not using Node.js APIs in the preload beyond `contextBridge`/`ipcRenderer`. If something breaks, it's a quick revert.
+### 3. 0.4.0 Release Hygiene
 
----
+**Current state**:
 
-### 6. Public Repo Checklist (Housekeeping)
+- `v0.3.0` tag exists.
+- `README.md`, `LICENSE`, `CHANGELOG.md`, logo, icon, and screenshot exist.
+- Git remotes are configured:
+  - `github` -> `https://github.com/Thaolin/just-markdown-gold.git`
+  - `origin` -> local Gitea-style remote
+- Local `release/` contains older installer artifacts.
 
-**Roadmap fit**: Public Repo Checklist
+**Next actions**:
 
-| Item | Status | Action |
-|---|---|---|
-| README with positioning | ✅ Done | — |
-| Screenshot | ❌ Missing | Add a screenshot of the editor with a Markdown file open |
-| LICENSE | ❌ Missing | Add a `LICENSE` file (likely MIT) |
-| CHANGELOG.md | ❌ Missing | Create one with the v0.1.0 release notes |
-| GitHub release | ❌ Not yet | After LICENSE + CHANGELOG + screenshot |
-| Git remotes | ❌ Not yet | `git remote add origin` and `git remote add gitea` |
+- Publish or verify the GitHub Release for `v0.3.0` with the refreshed Windows installer.
+- Keep generated installers out of Git.
+- Clean local `release/` artifacts when they become confusing; do not treat that folder as source.
+- Start `0.4.0` on a new commit after the final `v0.3.0` tag.
 
-**Quick license suggestion**: MIT is appropriate for a simple desktop utility. Drop a `LICENSE` file in the root.
+## Architecture Reference
 
----
-
-## Architecture Reference (Quick)
-
-```
+```text
 electron/
-  main.cjs         — Window management, IPC handlers, native menu, file ops, logging
-  preload.cjs      — contextBridge: exposes window.markdownFiles API + error listeners
+  main.cjs          Window management, IPC handlers, native menu, file ops, recent files, logging
+  preload.cjs       contextBridge API exposed as window.markdownFiles
 
 src/
-  main.tsx          — Entry point, installs browser fallback
-  App.tsx           — Top-level state: file path, content, dirty, livePreview, menu listeners
-  browserFallback.ts— Stubs window.markdownFiles for browser dev mode
-  global.d.ts       — TypeScript declarations for window.markdownFiles
-  styles.css        — All styles (OKLCH color palette, CM6 overrides, responsive)
+  main.tsx          React entry point and browser fallback install
+  App.tsx           Top-level document state, dirty state, recovery UI, toolbar, menu listeners
+  browserFallback.ts Browser-mode stubs for window.markdownFiles
+  preferences.ts    localStorage-backed editor preference helpers
+  global.d.ts       TypeScript declarations for window.markdownFiles
+  styles.css        App shell, themes, CM6 overrides, responsive behavior
 
   editor/
-    DurableEditor.tsx  — CM6 wrapper: history, search, markdown keybindings, Live Preview toggle
-    livePreview.ts     — Hand-rolled CM6 ViewPlugin: hides syntax marks, styles prose
-    markdownKeymap.ts  — Ctrl+B/I/1/2/3/>/-/1. keybindings
+    DurableEditor.tsx  CM6 wrapper: history, search, paste/copy hooks, persistence, Live Preview toggle
+    livePreview.ts     CM6 ViewPlugin for Live Preview decorations
+    markdownKeymap.ts  Markdown formatting commands and keybindings
+    copyHtml.ts        Basic Markdown selection to HTML clipboard conversion
 ```
 
-### IPC Channel Map
+## IPC Channel Map
 
 | Channel | Direction | Purpose |
 |---|---|---|
-| `file:get-pending-open` | Renderer → Main | Get file path from argv (second-instance or startup) |
-| `file:open-dialog` | Renderer → Main | Show native open dialog |
-| `file:read` | Renderer → Main | Read file from disk |
-| `file:save` | Renderer → Main | Write file (known path) |
-| `file:save-as` | Renderer → Main | Show save dialog + write |
-| `file:open-request` | Main → Renderer | Second-instance file open |
-| `app:set-dirty` | Renderer → Main | Track unsaved changes |
-| `app:confirm-unsaved` | Renderer → Main | Show native unsaved-changes dialog |
-| `app:close-after-save` | Renderer → Main | Complete close-after-save handshake |
-| `app:cancel-close-after-save` | Renderer → Main | Cancel close-after-save handshake |
-| `app:save-before-close` | Main → Renderer | Trigger save before window close |
-| `menu:new` / `menu:open` / `menu:save` / `menu:save-as` / `menu:find` / `menu:toggle-preview` | Main → Renderer | Menu item clicked |
-| `menu:open-recent` | Main → Renderer | Recent file clicked |
-| `menu:set-live-preview` | Renderer → Main | Sync checkbox state |
-| *(automatic)* `console-message` | Renderer → Main | All console.log/error captured to log file |
-
----
+| `file:get-pending-open` | Renderer -> Main | Get file path from startup argv or second-instance handoff |
+| `file:open-dialog` | Renderer -> Main | Show native open dialog |
+| `file:read` | Renderer -> Main | Read file from disk and remember it |
+| `file:save` | Renderer -> Main | Write file to known path and clear recovery draft |
+| `file:save-as` | Renderer -> Main | Show save dialog, write file, remember it, clear recovery draft |
+| `file:open-request` | Main -> Renderer | Ask existing window to open a file from second instance |
+| `app:set-dirty` | Renderer -> Main | Track whether close needs an unsaved-change prompt |
+| `app:confirm-unsaved` | Renderer -> Main | Show native Save / Don't Save / Cancel dialog |
+| `app:close-after-save` | Renderer -> Main | Complete the save-before-close handshake |
+| `app:cancel-close-after-save` | Renderer -> Main | Cancel the save-before-close handshake |
+| `app:save-before-close` | Main -> Renderer | Ask renderer to save before closing |
+| `app:save-recovery-draft` | Renderer -> Main | Write global recovery draft |
+| `app:get-recovery-draft` | Renderer -> Main | Read global recovery draft |
+| `app:clear-recovery-draft` | Renderer -> Main | Remove global recovery draft |
+| `menu:new` / `menu:open` / `menu:save` / `menu:save-as` | Main -> Renderer | File menu item clicked |
+| `menu:find` / `menu:toggle-preview` | Main -> Renderer | Edit/View menu item clicked |
+| `menu:set-font-size` / `menu:set-reading-width` / `menu:set-theme` | Main -> Renderer | View preference menu item clicked |
+| `menu:open-recent` | Main -> Renderer | Recent file clicked |
+| `menu:set-live-preview` | Renderer -> Main | Sync Live Preview checkbox state |
+| `menu:set-editor-preferences` | Renderer -> Main | Sync persisted preferences to native menu state |
+| `console-message` | Renderer -> Main | Capture renderer console output in the log |
 
 ## Dev Commands
 
 ```powershell
-npm run dev       # Vite + Electron concurrently (hot reload)
-npm run build     # tsc + Vite build
-npm run dist      # Full build + electron-builder NSIS installer
-npm run start     # Launch existing build
+npm run dev       # Vite + Electron concurrently
+npm run build     # TypeScript + Vite build
+npm run dist      # Build + electron-builder NSIS installer
+npm run start     # Launch through Electron
 ```
 
 Log file location: `%APPDATA%/just-markdown/markdown-editor.log`

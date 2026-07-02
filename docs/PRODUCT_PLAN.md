@@ -31,35 +31,35 @@ Do not turn this into:
 ## Near-Term Priorities
 
 1. Trust
-   - Unsaved-change handling.
-   - Crash recovery draft.
-   - Recent files.
+   - Unsaved-change handling: shipped.
+   - Crash recovery draft: shipped.
+   - Recent files: shipped with app-owned recent-file storage.
    - Installer upgrade and uninstall sanity checks.
-   - File association behavior for `.md` and `.markdown`.
+   - File association behavior for `.md` and `.markdown`: configured and needs recurring install QA.
 
 2. Desktop Manners
-   - Basic native menu: File, Edit, View, Help.
-   - Standard accelerators for open, save, save as, new, find, undo, redo, cut, copy, paste.
-   - About dialog with the Gold Edition identity.
+   - Basic native menu: File, Edit, View, Help: shipped.
+   - Standard accelerators for open, save, save as, new, find, undo, redo, cut, copy, paste: shipped.
+   - About dialog with the Gold Edition identity: shipped.
 
 3. Small Editor Improvements
    - Keep Live Preview predictable.
-   - Improve paste behavior only where it preserves plain Markdown.
+   - Improve paste behavior only where it preserves plain Markdown: shipped for rich-text paste.
    - Style common Markdown constructs cleanly.
    - Avoid adding modes, sidebars, or workflows unless daily use demands them.
 
-## 0.3.0 Docket
+## 0.3.0 Final
 
-1. Commit Current Polish
+1. Public Release Polish
    - Word count.
    - Narrower reading measure.
    - Better reading font and margins.
+   - README, logo, screenshot, changelog, and MIT license.
+   - App metadata bumped to `0.3.0`.
+   - Refreshed Gold Edition app icon.
+   - `v0.3.0` tag points at the final 0.3.0 commit.
 
-2. Installer And Version Hygiene
-   - Remove old `Markdown Editor Setup 0.1.0.exe` artifacts from `release/`.
-   - Decide whether `release/` stays ignored or whether GitHub releases carry installers only.
-
-3. File-Open Confidence Pass
+2. File-Open Confidence
    - File menu Open.
    - Toolbar Open.
    - Double-click `.md`.
@@ -67,7 +67,7 @@ Do not turn this into:
    - Second file while app is already running.
    - Recent files menu.
 
-4. Recovery Confidence Pass
+3. Recovery Confidence
    - Crash or kill with unsaved text.
    - Restore.
    - Dismiss.
@@ -75,27 +75,28 @@ Do not turn this into:
    - New document while recovery strip exists.
    - Save As cancel during close.
 
-5. Basic Settings, Maybe
+4. Installer And Version Hygiene
+   - Windows NSIS installer builds locally under `release/`.
+   - `release/` remains ignored; installers should be published through GitHub Releases instead of committed.
+   - Old local installer artifacts may still exist on disk and can be cleaned manually when they get noisy.
+
+5. Direct Toolbar Actions
+   - File actions stay visible: New, Open, Save, Save As.
+   - Formatting buttons wrap or toggle plain Markdown for bold, italic, H1-H3, block quote, bullet list, and numbered list.
+   - Find is available from the toolbar and native menu.
+   - Toolbar clicks preserve the editor selection before running formatting commands.
+
+6. Menu-Level Reading Preferences
    - No settings screen yet.
-   - Menu-level toggles only if they earn their keep:
-     - Live Preview, already there.
-     - Font size: Smaller / Default / Larger.
-     - Reading width: Narrow / Standard / Wide.
+   - Live Preview stays as a toolbar toggle and View menu checkbox.
+   - Font size: Smaller / Default / Larger.
+   - Reading width: Narrow / Standard / Wide.
+   - Theme: Gold Standard / Midnight / Evergreen / Paper / Power User.
+   - Preferences persist in localStorage and sync back to native menu checkmarks.
 
-6. Tiny Public Repo Polish
-   - Add LICENSE.
-   - Add CHANGELOG.md.
-   - Make the README a bit more unhinged, in the "Just a freakin' Markdown editor GOLD EDITION" spirit.
-   - Add the logo to the README.
-   - Add a screenshot to the README once the right shot exists.
-   - Tag `v0.3.0`.
-   - Upload installer to GitHub release.
-
-7. Deferred / Maybe Pile
-   - Auto-update, so an installed copy can quietly keep up with small fixes.
-   - Per-file recovery.
-   - Better link/image HTML copy.
-   - More Markdown constructs in Live Preview.
+7. Empty/New Document State
+   - The starter document now says welcome, open a file, or start typing.
+   - Still no dashboard, side panel, modal, or onboarding tour.
 
 ## 0.4.0 Docket
 
@@ -145,15 +146,18 @@ Do not turn this into:
 ## Maybe Later
 
 - Auto-update, so an installed copy can quietly keep up with small fixes.
+- Per-file recovery.
+- Better link/image HTML copy.
+- More Markdown constructs in Live Preview.
 - Android or WebView companion experiment.
 - Smaller-runtime investigation if Electron install size becomes a real blocker.
 
 ## Public Repo Checklist
 
-- README with the simple positioning.
-- Screenshot.
-- LICENSE.
-- CHANGELOG.md.
-- GitHub release with Windows installer.
-- GitHub remote plus Gitea mirror remote.
-- Tag the first public release as `v0.3.0`.
+- README with the simple positioning: done.
+- Screenshot: done for `0.3.0`; refresh again if the toolbar/theme UI needs a final public screenshot.
+- LICENSE: done.
+- CHANGELOG.md: done.
+- Git remotes: GitHub remote plus local Gitea-style `origin` remote are configured.
+- Tag the first public release as `v0.3.0`: done.
+- GitHub release with Windows installer: publish/verify outside the repo if not already done.
