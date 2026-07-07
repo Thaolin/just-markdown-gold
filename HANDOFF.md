@@ -26,7 +26,7 @@ The repo is on `main` and `v0.3.0` is the final public-polish release: recovery 
 | **Error capture** | Main errors, renderer load failures, renderer exits, and renderer console messages are logged |
 | **Windows installer** | `electron-builder` NSIS with `.md` and `.markdown` file associations |
 | **Toolbar formatting** | Buttons for bold, italic, H1-H3, quote, bullet list, numbered list, and Find |
-| **Welcome starter document** | New untitled documents start with a short welcome note instead of `# Untitled` |
+| **Welcome starter document** | The first untitled document can show a short welcome note; later New documents are blank |
 | **View menu preferences** | Theme, Font Size, and Reading Width radio menus |
 | **Themes** | Gold Standard, Midnight, Evergreen, Paper, Power User |
 | **Preference persistence** | localStorage-backed theme/font/measure values sync back to native menu checkmarks |
@@ -40,8 +40,22 @@ The repo is on `main` and `v0.3.0` is the final public-polish release: recovery 
 - Renderer errors should flow through console logging so the main-process log captures them.
 - Local comfort state can live in localStorage; user content and recovery drafts stay in files.
 - Avoid dashboards, sidebars, workspace concepts, cloud sync, plugin systems, and account surfaces.
+- `PRODUCT.md` and `DESIGN.md` are the Impeccable UI-pass context files.
+- npm is for dependency install, CI, and build scripts. End-user distribution is native artifacts through GitHub Releases, not npm publishing.
 
 ## Next Quick Wins
+
+### 0. 0.4.0 UI Pass
+
+**Roadmap fit**: Public polish, daily-driver trust, Impeccable product-register pass.
+
+**Current state**: `PRODUCT.md` and `DESIGN.md` now exist at the repo root. The intended pass is restrained: refine the current shell rather than redesigning it.
+
+**Next actions**:
+
+- Run a focused UI audit against topbar hierarchy, toolbar states, status bars, recovery strip, empty/new document state, recent files/menu copy, keyboard focus, narrow/normal/ultrawide layout, and all five themes.
+- Reject scope creep: no dashboard, sidebar, onboarding tour, file tree, settings screen, account surface, or decorative panels.
+- Verify with screenshots before shipping.
 
 ### 1. Installer Upgrade And Uninstall Verification
 
@@ -83,6 +97,9 @@ webPreferences: {
 
 - `v0.3.0` tag exists.
 - `README.md`, `LICENSE`, `CHANGELOG.md`, logo, icon, and screenshot exist.
+- `dist:win`, `dist:mac`, `dist:linux`, and `dist:all` scripts exist.
+- `.github/workflows/release-builds.yml` builds Windows, macOS, and Linux release artifacts.
+- macOS `.icns` generation is handled by `scripts/create-macos-icon.mjs` on macOS.
 - Git remotes are configured:
   - `github` -> `https://github.com/Thaolin/just-markdown-gold.git`
   - `origin` -> local Gitea-style remote
@@ -91,6 +108,7 @@ webPreferences: {
 **Next actions**:
 
 - Publish or verify the GitHub Release for `v0.3.0` with the refreshed Windows installer.
+- Push a test tag or run the release workflow manually to verify macOS DMG/ZIP and Linux AppImage/Flatpak outputs.
 - Keep generated installers out of Git.
 - Clean local `release/` artifacts when they become confusing; do not treat that folder as source.
 - Start `0.4.0` on a new commit after the final `v0.3.0` tag.

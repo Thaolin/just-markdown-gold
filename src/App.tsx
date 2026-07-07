@@ -16,7 +16,33 @@ import {
   type ThemePreference,
 } from "./preferences";
 
-const EMPTY_DOC = "# Welcome to Just Markdown: Gold Edition\n\nOpen a file or start typing.\n\nThe Markdown editor arms race is over. This one opens files.\n\n";
+const BLANK_DOC = "";
+const WELCOME_DOC = "# Welcome to Just Markdown: Gold Edition\n\nOpen a file or start typing.\n\nThe Markdown editor arms race is over. This one opens files.\n\n";
+const WELCOME_SEEN_KEY = "just-markdown-welcome-seen";
+
+let runtimeInitialUntitledContent: string | null = null;
+
+function hasSeenWelcome(): boolean {
+  try {
+    return window.localStorage.getItem(WELCOME_SEEN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function markWelcomeSeen(): void {
+  try {
+    window.localStorage.setItem(WELCOME_SEEN_KEY, "true");
+  } catch {
+    // If localStorage is unavailable, keep the editor usable with the in-memory default.
+  }
+}
+
+function initialUntitledContent(): string {
+  if (runtimeInitialUntitledContent !== null) return runtimeInitialUntitledContent;
+  runtimeInitialUntitledContent = hasSeenWelcome() ? BLANK_DOC : WELCOME_DOC;
+  return runtimeInitialUntitledContent;
+}
 
 interface FormatButton {
   command: MarkdownCommand;
@@ -50,9 +76,10 @@ function wordCount(text: string): number {
 }
 
 export default function App() {
+  const initialContent = useMemo(() => initialUntitledContent(), []);
   const [filePath, setFilePath] = useState<string | null>(null);
-  const [content, setContent] = useState(EMPTY_DOC);
-  const [savedContent, setSavedContent] = useState(EMPTY_DOC);
+  const [content, setContent] = useState(initialContent);
+  const [savedContent, setSavedContent] = useState(initialContent);
   const [livePreview, setLivePreview] = useState(true);
   const [fontSize, setFontSize] = useState<FontSizePreference>(() =>
     loadPreference(FONT_SIZE_KEY, FONT_SIZE_OPTIONS, "default")
@@ -83,6 +110,10 @@ export default function App() {
   useEffect(() => {
     document.title = title;
   }, [title]);
+
+  useEffect(() => {
+    if (initialContent === WELCOME_DOC) markWelcomeSeen();
+  }, [initialContent]);
 
   useEffect(() => {
     void window.markdownFiles.setDirty(dirty);
@@ -191,8 +222,8 @@ export default function App() {
     if (!(await confirmBeforeLosingChanges())) return;
     cancelRecoveryTimer();
     setFilePath(null);
-    setContent(EMPTY_DOC);
-    setSavedContent(EMPTY_DOC);
+    setContent(BLANK_DOC);
+    setSavedContent(BLANK_DOC);
     setError(null);
     setStatus("idle");
     setRecoveryDraft(null);
@@ -292,7 +323,7 @@ export default function App() {
     if (!recoveryDraft) return;
     cancelRecoveryTimer();
     setContent(recoveryDraft);
-    setSavedContent(EMPTY_DOC); // still dirty — no real file yet
+    setSavedContent(BLANK_DOC); // still dirty because there is no real file yet
     setFilePath(null);
     setRecoveryDraft(null);
     setError(null);
@@ -312,7 +343,10 @@ export default function App() {
     return dirty ? "modified" : "saved";
   }, [dirty, status]);
 
-  const saveDisabled = status === "saving" || (!dirty && !!filePath);
+  const actionDisabled = status === "loading";
+  const saveDisabled = status === "saving" || actionDisabled || (!dirty && !!filePath);
+  const saveAsDisabled = status === "saving" || actionDisabled;
+  const editorPlaceholder = filePath ? "Write Markdown..." : "Start typing...";
 
   return (
     <main className={`app-shell theme-${theme} font-${fontSize} measure-${readingWidth}`}>
@@ -326,11 +360,23 @@ export default function App() {
         </div>
         <div className="toolbar">
           <div className="tool-group">
-            <button type="button" className="tool-button" onClick={() => void newDoc()} title="New (Ctrl+N)">
+            <button
+              type="button"
+              className="tool-button"
+              onClick={() => void newDoc()}
+              disabled={actionDisabled}
+              title="New (Ctrl+N)"
+            >
               <span className="tool-icon" aria-hidden="true">+</span>
               <span>New</span>
             </button>
-            <button type="button" className="tool-button" onClick={() => void openDialog()} title="Open (Ctrl+O)">
+            <button
+              type="button"
+              className="tool-button"
+              onClick={() => void openDialog()}
+              disabled={actionDisabled}
+              title="Open (Ctrl+O)"
+            >
               <span className="tool-icon" aria-hidden="true">↗</span>
               <span>Open</span>
             </button>
@@ -346,7 +392,13 @@ export default function App() {
               <span className="tool-icon" aria-hidden="true">✓</span>
               <span>Save</span>
             </button>
-            <button type="button" className="tool-button" onClick={() => void saveAs()} title="Save As">
+            <button
+              type="button"
+              className="tool-button"
+              onClick={() => void saveAs()}
+              disabled={saveAsDisabled}
+              title="Save As"
+            >
               <span className="tool-icon" aria-hidden="true">…</span>
               <span>Save As</span>
             </button>
@@ -377,26 +429,27 @@ export default function App() {
               Find
             </button>
           </div>
-          <label className="toggle" title="Hide Markdown marks while writing">
+          <label className={`toggle ${livePreview ? "is-active" : ""}`} title="Hide Markdown marks while writing">
             <input
               type="checkbox"
               checked={livePreview}
               onChange={(event) => setLivePreview(event.target.checked)}
+              aria-label="Live Preview"
             />
             <span>Live Preview</span>
           </label>
         </div>
       </header>
 
-      <div className="subbar">
+      <div className="subbar" aria-live="polite">
         <span className={`status-pill ${dirty ? "is-dirty" : ""}`}>{statusText}</span>
         <span>{words.toLocaleString()} words</span>
       </div>
 
-      {error ? <div className="error-strip">{error}</div> : null}
+      {error ? <div className="error-strip" role="alert">{error}</div> : null}
 
       {recoveryDraft ? (
-        <div className="recovery-strip">
+        <div className="recovery-strip" role="status">
           <span>Recovery draft found — unsaved changes from a previous session.</span>
           <button type="button" className="tool-button primary" onClick={restoreRecovery}>Restore</button>
           <button type="button" className="tool-button" onClick={dismissRecovery}>Dismiss</button>
@@ -410,6 +463,7 @@ export default function App() {
         onChange={setContent}
         readOnly={status === "loading"}
         livePreview={livePreview}
+        placeholderText={editorPlaceholder}
       />
 
       <footer className="statusbar">

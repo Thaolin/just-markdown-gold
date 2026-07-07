@@ -14,6 +14,7 @@ export interface DurableEditorProps {
   docKey: string;
   readOnly?: boolean;
   livePreview?: boolean;
+  placeholderText?: string;
 }
 
 interface SavedPos {
@@ -103,6 +104,7 @@ export default function DurableEditor({
   docKey,
   readOnly = false,
   livePreview = true,
+  placeholderText = "Write Markdown...",
 }: DurableEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -140,7 +142,7 @@ export default function DurableEditor({
         keymap.of([...searchKeymap, ...defaultKeymap, ...historyKeymap]),
         EditorView.lineWrapping,
         markdownRef.current.of(markdownMode(livePreview)),
-        placeholder("Write Markdown..."),
+        placeholder(placeholderText),
         EditorView.contentAttributes.of({ spellcheck: "true" }),
         editableRef.current.of(editableState(readOnlyRef.current)),
         EditorView.updateListener.of((u) => {

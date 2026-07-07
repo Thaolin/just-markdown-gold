@@ -1,5 +1,5 @@
 // copyHtml.ts — produce text/html clipboard data from the CM6 Markdown buffer.
-// ponytail: bold, italic, headings, paragraph breaks. The Markdown marks (*, **, #)
+// ponytail: bold, italic, headings, paragraph/hard-line breaks. The Markdown marks (*, **, #)
 // are SUPPRESSED in the HTML output (same as Live Preview hides them visually).
 // Blockquotes, lists, HR, links, images, code: deferred until someone misses them.
 
@@ -18,6 +18,12 @@ interface MarkEvent {
   pos: number;
   type: "open" | "close";
   tag: string;
+}
+
+interface TextLine {
+  from: number;
+  to: number;
+  text: string;
 }
 
 export function selectionToHtml(
@@ -119,20 +125,51 @@ export function selectionToHtml(
     return parts.join("");
   };
 
-  // ── block-level: split into paragraphs, detect headings ──
+  const hardBreakEnd = (line: TextLine): number => {
+    if (/\\$/.test(line.text)) return line.to - 1;
+    const trailingSpaces = line.text.match(/ {2,}$/)?.[0].length ?? 0;
+    return line.to - trailingSpaces;
+  };
+
+  const hasHardBreak = (line: TextLine): boolean => hardBreakEnd(line) < line.to;
+
+  const renderParagraph = (lines: TextLine[]): string => {
+    const parts: string[] = [];
+    lines.forEach((line, index) => {
+      const contentTo = index < lines.length - 1 && hasHardBreak(line) ? hardBreakEnd(line) : line.to;
+      const inner = renderInline(line.from, contentTo);
+      if (!inner) return;
+      if (parts.length) parts.push("<br>");
+      parts.push(inner);
+    });
+    return parts.length ? `<p>${parts.join("")}</p>` : "";
+  };
+
+  // ── block-level: blank lines split paragraphs; hard line breaks stay inside the paragraph ──
   const startLine = doc.lineAt(from);
   const endLine = doc.lineAt(to);
   const blocks: string[] = [];
+  let paragraph: TextLine[] = [];
+
+  const flushParagraph = () => {
+    const block = renderParagraph(paragraph);
+    if (block) blocks.push(block);
+    paragraph = [];
+  };
 
   for (let n = startLine.number; n <= endLine.number; n++) {
     const line = doc.line(n);
     const lineFrom = Math.max(line.from, from);
     const lineTo = Math.min(line.to, to);
 
-    if (lineFrom >= lineTo) continue;
+    if (lineFrom >= lineTo || !doc.sliceString(lineFrom, lineTo).trim()) {
+      flushParagraph();
+      continue;
+    }
 
     const headingMatch = line.text.match(/^(#{1,6})\s/);
     if (headingMatch && lineFrom === line.from) {
+      flushParagraph();
       const level = headingMatch[1].length;
       const contentFrom = line.from + headingMatch[0].length;
       const contentTo = Math.min(lineTo, line.to);
@@ -141,10 +178,11 @@ export function selectionToHtml(
         if (inner) blocks.push(`<h${level}>${inner}</h${level}>`);
       }
     } else {
-      const inner = renderInline(lineFrom, lineTo);
-      if (inner) blocks.push(`<p>${inner}</p>`);
+      paragraph.push({ from: lineFrom, to: lineTo, text: doc.sliceString(lineFrom, lineTo) });
     }
   }
+
+  flushParagraph();
 
   // If only one block and it's a <p>, strip the wrapper — paste into inline contexts (email, etc.)
   if (blocks.length === 1 && blocks[0].startsWith("<p>")) {

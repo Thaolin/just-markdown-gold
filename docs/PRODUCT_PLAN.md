@@ -95,30 +95,31 @@ Do not turn this into:
    - Preferences persist in localStorage and sync back to native menu checkmarks.
 
 7. Empty/New Document State
-   - The starter document now says welcome, open a file, or start typing.
+   - The first starter document says welcome, open a file, or start typing.
+   - New untitled documents after that are blank and titled `Untitled.md`.
    - Still no dashboard, side panel, modal, or onboarding tour.
 
 ## 0.4.0 Docket
 
 1. macOS And Linux Packaging
    - Add explicit package scripts:
-     - `dist:win`
-     - `dist:mac`
-     - `dist:linux`
-     - `dist:all`
+     - `dist:win`: added.
+     - `dist:mac`: added.
+     - `dist:linux`: added.
+     - `dist:all`: added.
    - Add GitHub Actions release builds:
-     - Windows runner builds NSIS `.exe`.
-     - macOS runner builds `.dmg` and `.zip`.
-     - Ubuntu runner builds AppImage and Flatpak bundle.
+     - Windows runner builds NSIS `.exe`: added.
+     - macOS runner builds `.dmg` and `.zip`: added.
+     - Ubuntu runner builds AppImage and Flatpak bundle: added.
    - Add macOS packaging assets:
-     - `.icns` icon.
-     - File association metadata for `.md` and `.markdown`.
+     - `.icns` icon generated in CI from `build/icon.png`.
+     - File association metadata for `.md` and `.markdown`: added.
      - Unsigned local build first, signing and notarization later.
    - Add Linux packaging assets:
-     - AppImage for the easiest first Linux download.
-     - Flatpak bundle for the "probably runs on your fridge" bit.
-     - Linux icon sizes, `.desktop` metadata, and Markdown MIME associations.
-   - Update README with a platform table and release artifact notes.
+     - AppImage for the easiest first Linux download: added.
+     - Flatpak bundle for the "probably runs on your fridge" bit: added.
+     - Linux icon and Markdown MIME associations: added through `electron-builder`.
+   - Update README with a platform table and release artifact notes: added.
 
 2. Full UI Pass With Impeccable
    - Treat the app as a restrained product UI: familiar controls, low ceremony, fast task flow.

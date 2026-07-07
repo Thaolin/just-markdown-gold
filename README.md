@@ -74,13 +74,17 @@ npm run build
 
 ## Package
 
-Build the Windows installer:
+Build platform packages:
 
 ```powershell
-npm run dist
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
 ```
 
-The installer is written to `release/` and is intentionally ignored by Git. Publish installers through GitHub Releases rather than committing generated binaries.
+`npm run dist` still builds the Windows installer. `npm run dist:all` asks `electron-builder` for every configured target, but cross-platform packaging is best handled by GitHub Actions or by running the matching command on the matching OS.
+
+Packages are written to `release/` and are intentionally ignored by Git. Tagged releases that match `v*` run `.github/workflows/release-builds.yml` and attach generated artifacts to the GitHub Release.
 
 Windows file associations for `.md` and `.markdown` are configured in `package.json` through `electron-builder`.
 
@@ -89,8 +93,8 @@ Windows file associations for `.md` and `.markdown` are configured in `package.j
 | Platform | Status |
 | --- | --- |
 | Windows | Supported with NSIS installer. Latest local packaged release is `0.3.0`. |
-| macOS | Planned for `0.4.0` with DMG/ZIP builds. Signing and notarization can follow. |
-| Linux | Planned for `0.4.0` with AppImage and Flatpak builds. |
+| macOS | `0.4.0` build target added for unsigned DMG/ZIP artifacts. Signing and notarization can follow. |
+| Linux | `0.4.0` build target added for AppImage and Flatpak artifacts. |
 | Android | Not an Electron target. Future experiment, mostly for the smartfridge joke. |
 
 Will it run on a smartfridge? If the fridge runs Linux, Android, or a browser and has opinions about Markdown, probably eventually.
