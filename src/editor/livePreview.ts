@@ -79,10 +79,8 @@ const BULLET = Decoration.replace({ widget: new GlyphWidget("cm-md-bullet", "•
 
 const BULLET_MARK = /^[-*+]$/; // a bullet ListMark vs. an ordered "1." ListMark
 
-// Pure decoration computation over the given ranges (the plugin passes view.visibleRanges; the
-// headless test passes the whole doc). No DOM / view dependency, so the exact production logic is
-// unit-testable against the real Lezer tree. Render-only: produces RangeSets, never mutates the doc.
-export function buildDecorations(
+// Pure decoration computation over the visible ranges. Render-only: produces RangeSets, never mutates the doc.
+function buildDecorations(
   state: EditorState,
   ranges: readonly { from: number; to: number }[]
 ): { decorations: DecorationSet; atomic: RangeSet<Decoration> } {

@@ -13,9 +13,23 @@ let editorFontSize = "default";
 let editorReadingWidth = "standard";
 let editorTheme = "gold";
 
-const fontSizePreferences = new Set(["smaller", "default", "larger"]);
-const readingWidthPreferences = new Set(["narrow", "standard", "wide"]);
-const themePreferences = new Set(["gold", "midnight", "evergreen", "paper", "power-user"]);
+const themePreferences = [
+  ["gold", "Gold Standard"],
+  ["midnight", "Midnight"],
+  ["evergreen", "Evergreen"],
+  ["paper", "Paper"],
+  ["power-user", "Power User"],
+];
+const fontSizePreferences = [
+  ["smaller", "Smaller"],
+  ["default", "Default"],
+  ["larger", "Larger"],
+];
+const readingWidthPreferences = [
+  ["narrow", "Narrow"],
+  ["standard", "Standard"],
+  ["wide", "Wide"],
+];
 
 const recoveryPath = path.join(app.getPath("userData"), "recovery-draft.md");
 const recentFilesPath = path.join(app.getPath("userData"), "recent-files.json");
@@ -92,34 +106,44 @@ function buildRecentFilesMenu() {
   ];
 }
 
-function setEditorFontSize(value) {
-  if (!fontSizePreferences.has(value)) {
-    log("invalid editor font size", { value });
-    return false;
-  }
-  editorFontSize = value;
-  refreshMenu();
-  return true;
+function hasPreference(options, value) {
+  return options.some(([option]) => option === value);
 }
 
-function setEditorReadingWidth(value) {
-  if (!readingWidthPreferences.has(value)) {
-    log("invalid editor reading width", { value });
-    return false;
-  }
-  editorReadingWidth = value;
-  refreshMenu();
-  return true;
+function radioPreferenceItems(options, currentValue, applyValue, channel) {
+  return options.map(([value, label]) => ({
+    label,
+    type: "radio",
+    checked: currentValue === value,
+    click: () => {
+      applyValue(value);
+      refreshMenu();
+      if (mainWindow) mainWindow.webContents.send(channel, value);
+    },
+  }));
 }
 
-function setEditorTheme(value) {
-  if (!themePreferences.has(value)) {
-    log("invalid editor theme", { value });
-    return false;
+function setEditorPreferences(preferences) {
+  if (!preferences || typeof preferences !== "object") {
+    log("invalid editor preferences payload", { preferences });
+    return;
   }
-  editorTheme = value;
+  if (!hasPreference(fontSizePreferences, preferences.fontSize)) {
+    log("invalid editor preferences font size", { fontSize: preferences.fontSize });
+    return;
+  }
+  if (!hasPreference(readingWidthPreferences, preferences.readingWidth)) {
+    log("invalid editor preferences reading width", { readingWidth: preferences.readingWidth });
+    return;
+  }
+  if (!hasPreference(themePreferences, preferences.theme)) {
+    log("invalid editor preferences theme", { theme: preferences.theme });
+    return;
+  }
+  editorFontSize = preferences.fontSize;
+  editorReadingWidth = preferences.readingWidth;
+  editorTheme = preferences.theme;
   refreshMenu();
-  return true;
 }
 
 function buildMenu() {
@@ -193,117 +217,15 @@ function buildMenu() {
         { type: "separator" },
         {
           label: "Theme",
-          submenu: [
-            {
-              label: "Gold Standard",
-              type: "radio",
-              checked: editorTheme === "gold",
-              click: () => {
-                setEditorTheme("gold");
-                if (mainWindow) mainWindow.webContents.send("menu:set-theme", "gold");
-              },
-            },
-            {
-              label: "Midnight",
-              type: "radio",
-              checked: editorTheme === "midnight",
-              click: () => {
-                setEditorTheme("midnight");
-                if (mainWindow) mainWindow.webContents.send("menu:set-theme", "midnight");
-              },
-            },
-            {
-              label: "Evergreen",
-              type: "radio",
-              checked: editorTheme === "evergreen",
-              click: () => {
-                setEditorTheme("evergreen");
-                if (mainWindow) mainWindow.webContents.send("menu:set-theme", "evergreen");
-              },
-            },
-            {
-              label: "Paper",
-              type: "radio",
-              checked: editorTheme === "paper",
-              click: () => {
-                setEditorTheme("paper");
-                if (mainWindow) mainWindow.webContents.send("menu:set-theme", "paper");
-              },
-            },
-            {
-              label: "Power User",
-              type: "radio",
-              checked: editorTheme === "power-user",
-              click: () => {
-                setEditorTheme("power-user");
-                if (mainWindow) mainWindow.webContents.send("menu:set-theme", "power-user");
-              },
-            },
-          ],
+          submenu: radioPreferenceItems(themePreferences, editorTheme, (value) => { editorTheme = value; }, "menu:set-theme"),
         },
         {
           label: "Font Size",
-          submenu: [
-            {
-              label: "Smaller",
-              type: "radio",
-              checked: editorFontSize === "smaller",
-              click: () => {
-                setEditorFontSize("smaller");
-                if (mainWindow) mainWindow.webContents.send("menu:set-font-size", "smaller");
-              },
-            },
-            {
-              label: "Default",
-              type: "radio",
-              checked: editorFontSize === "default",
-              click: () => {
-                setEditorFontSize("default");
-                if (mainWindow) mainWindow.webContents.send("menu:set-font-size", "default");
-              },
-            },
-            {
-              label: "Larger",
-              type: "radio",
-              checked: editorFontSize === "larger",
-              click: () => {
-                setEditorFontSize("larger");
-                if (mainWindow) mainWindow.webContents.send("menu:set-font-size", "larger");
-              },
-            },
-          ],
+          submenu: radioPreferenceItems(fontSizePreferences, editorFontSize, (value) => { editorFontSize = value; }, "menu:set-font-size"),
         },
         {
           label: "Reading Width",
-          submenu: [
-            {
-              label: "Narrow",
-              type: "radio",
-              checked: editorReadingWidth === "narrow",
-              click: () => {
-                setEditorReadingWidth("narrow");
-                if (mainWindow) mainWindow.webContents.send("menu:set-reading-width", "narrow");
-              },
-            },
-            {
-              label: "Standard",
-              type: "radio",
-              checked: editorReadingWidth === "standard",
-              click: () => {
-                setEditorReadingWidth("standard");
-                if (mainWindow) mainWindow.webContents.send("menu:set-reading-width", "standard");
-              },
-            },
-            {
-              label: "Wide",
-              type: "radio",
-              checked: editorReadingWidth === "wide",
-              click: () => {
-                setEditorReadingWidth("wide");
-                if (mainWindow) mainWindow.webContents.send("menu:set-reading-width", "wide");
-              },
-            },
-          ],
+          submenu: radioPreferenceItems(readingWidthPreferences, editorReadingWidth, (value) => { editorReadingWidth = value; }, "menu:set-reading-width"),
         },
       ],
     },
@@ -587,27 +509,7 @@ ipcMain.handle("menu:set-live-preview", (_event, enabled) => {
 });
 
 ipcMain.handle("menu:set-editor-preferences", (_event, preferences) => {
-  if (!preferences || typeof preferences !== "object") {
-    log("invalid editor preferences payload", { preferences });
-    return { ok: false, error: "Invalid editor preferences payload." };
-  }
-  if (!fontSizePreferences.has(preferences.fontSize)) {
-    log("invalid editor preferences font size", { fontSize: preferences.fontSize });
-    return { ok: false, error: "Invalid font size preference." };
-  }
-  if (!readingWidthPreferences.has(preferences.readingWidth)) {
-    log("invalid editor preferences reading width", { readingWidth: preferences.readingWidth });
-    return { ok: false, error: "Invalid reading width preference." };
-  }
-  if (!themePreferences.has(preferences.theme)) {
-    log("invalid editor preferences theme", { theme: preferences.theme });
-    return { ok: false, error: "Invalid theme preference." };
-  }
-  editorFontSize = preferences.fontSize;
-  editorReadingWidth = preferences.readingWidth;
-  editorTheme = preferences.theme;
-  refreshMenu();
-  return { ok: true };
+  setEditorPreferences(preferences);
 });
 
 // ── Crash recovery draft ──

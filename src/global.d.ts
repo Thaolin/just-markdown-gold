@@ -1,5 +1,4 @@
 import type {
-  EditorPreferenceResult,
   FontSizePreference,
   ReadingWidthPreference,
   ThemePreference,
@@ -39,7 +38,7 @@ declare global {
         fontSize: FontSizePreference;
         readingWidth: ReadingWidthPreference;
         theme: ThemePreference;
-      }) => Promise<EditorPreferenceResult>;
+      }) => Promise<void>;
       saveRecoveryDraft: (content: string) => Promise<void>;
       getRecoveryDraft: () => Promise<string | null>;
       clearRecoveryDraft: () => Promise<void>;

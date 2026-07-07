@@ -36,7 +36,7 @@ export function installBrowserFallback(): void {
     onMenuFind: () => () => undefined,
     onMenuOpenRecent: () => () => undefined,
     setLivePreview: async () => undefined,
-    setEditorPreferences: async () => ({ ok: true }),
+    setEditorPreferences: async () => undefined,
     saveRecoveryDraft: async () => undefined,
     getRecoveryDraft: async () => null,
     clearRecoveryDraft: async () => undefined,

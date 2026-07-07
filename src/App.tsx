@@ -280,9 +280,8 @@ export default function App() {
     savePreference(FONT_SIZE_KEY, fontSize);
     savePreference(READING_WIDTH_KEY, readingWidth);
     savePreference(THEME_KEY, theme);
-    void window.markdownFiles.setEditorPreferences({ fontSize, readingWidth, theme }).then((result) => {
-      if (!result.ok) console.warn("Editor preference sync failed", result.error);
-    }).catch((e) => console.warn("Editor preference sync failed", e));
+    void window.markdownFiles.setEditorPreferences({ fontSize, readingWidth, theme })
+      .catch((e) => console.warn("Editor preference sync failed", e));
   }, [fontSize, readingWidth, theme]);
 
   useEffect(() => {

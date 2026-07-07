@@ -13,6 +13,12 @@ window.addEventListener("unhandledrejection", (event) => {
   });
 });
 
+function subscribe(channel, callback) {
+  const listener = (_event, ...args) => callback(...args);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+}
+
 contextBridge.exposeInMainWorld("markdownFiles", {
   getPendingOpen: () => ipcRenderer.invoke("file:get-pending-open"),
   openDialog: () => ipcRenderer.invoke("file:open-dialog"),
@@ -23,59 +29,18 @@ contextBridge.exposeInMainWorld("markdownFiles", {
   confirmUnsaved: (fileLabel) => ipcRenderer.invoke("app:confirm-unsaved", fileLabel),
   closeAfterSave: () => ipcRenderer.invoke("app:close-after-save"),
   cancelCloseAfterSave: () => ipcRenderer.invoke("app:cancel-close-after-save"),
-  onOpenRequest: (callback) => {
-    const listener = (_event, filePath) => callback(filePath);
-    ipcRenderer.on("file:open-request", listener);
-    return () => ipcRenderer.removeListener("file:open-request", listener);
-  },
-  onSaveBeforeClose: (callback) => {
-    ipcRenderer.on("app:save-before-close", callback);
-    return () => ipcRenderer.removeListener("app:save-before-close", callback);
-  },
-  onMenuNew: (callback) => {
-    ipcRenderer.on("menu:new", callback);
-    return () => ipcRenderer.removeListener("menu:new", callback);
-  },
-  onMenuOpen: (callback) => {
-    ipcRenderer.on("menu:open", callback);
-    return () => ipcRenderer.removeListener("menu:open", callback);
-  },
-  onMenuSave: (callback) => {
-    ipcRenderer.on("menu:save", callback);
-    return () => ipcRenderer.removeListener("menu:save", callback);
-  },
-  onMenuSaveAs: (callback) => {
-    ipcRenderer.on("menu:save-as", callback);
-    return () => ipcRenderer.removeListener("menu:save-as", callback);
-  },
-  onMenuTogglePreview: (callback) => {
-    ipcRenderer.on("menu:toggle-preview", callback);
-    return () => ipcRenderer.removeListener("menu:toggle-preview", callback);
-  },
-  onMenuFontSize: (callback) => {
-    const listener = (_event, fontSize) => callback(fontSize);
-    ipcRenderer.on("menu:set-font-size", listener);
-    return () => ipcRenderer.removeListener("menu:set-font-size", listener);
-  },
-  onMenuReadingWidth: (callback) => {
-    const listener = (_event, readingWidth) => callback(readingWidth);
-    ipcRenderer.on("menu:set-reading-width", listener);
-    return () => ipcRenderer.removeListener("menu:set-reading-width", listener);
-  },
-  onMenuTheme: (callback) => {
-    const listener = (_event, theme) => callback(theme);
-    ipcRenderer.on("menu:set-theme", listener);
-    return () => ipcRenderer.removeListener("menu:set-theme", listener);
-  },
-  onMenuFind: (callback) => {
-    ipcRenderer.on("menu:find", callback);
-    return () => ipcRenderer.removeListener("menu:find", callback);
-  },
-  onMenuOpenRecent: (callback) => {
-    const listener = (_event, filePath) => callback(filePath);
-    ipcRenderer.on("menu:open-recent", listener);
-    return () => ipcRenderer.removeListener("menu:open-recent", listener);
-  },
+  onOpenRequest: (callback) => subscribe("file:open-request", callback),
+  onSaveBeforeClose: (callback) => subscribe("app:save-before-close", callback),
+  onMenuNew: (callback) => subscribe("menu:new", callback),
+  onMenuOpen: (callback) => subscribe("menu:open", callback),
+  onMenuSave: (callback) => subscribe("menu:save", callback),
+  onMenuSaveAs: (callback) => subscribe("menu:save-as", callback),
+  onMenuTogglePreview: (callback) => subscribe("menu:toggle-preview", callback),
+  onMenuFontSize: (callback) => subscribe("menu:set-font-size", callback),
+  onMenuReadingWidth: (callback) => subscribe("menu:set-reading-width", callback),
+  onMenuTheme: (callback) => subscribe("menu:set-theme", callback),
+  onMenuFind: (callback) => subscribe("menu:find", callback),
+  onMenuOpenRecent: (callback) => subscribe("menu:open-recent", callback),
   setLivePreview: (enabled) => ipcRenderer.invoke("menu:set-live-preview", enabled),
   setEditorPreferences: (preferences) => ipcRenderer.invoke("menu:set-editor-preferences", preferences),
 

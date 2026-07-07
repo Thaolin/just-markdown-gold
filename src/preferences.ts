@@ -16,8 +16,6 @@ export interface EditorPreferences {
   theme: ThemePreference;
 }
 
-export type EditorPreferenceResult = { ok: true } | { ok: false; error: string };
-
 export function loadPreference<T extends string>(key: string, options: readonly T[], fallback: T): T {
   try {
     const saved = localStorage.getItem(key);
