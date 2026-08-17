@@ -16,6 +16,7 @@
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
+    "test": "node --test",
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "tsc && vite build",
     "create:mac-icon": "node scripts/create-macos-icon.mjs",

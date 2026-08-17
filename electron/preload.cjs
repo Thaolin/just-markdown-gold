@@ -20,12 +20,13 @@ function subscribe(channel, callback) {
 }
 
 contextBridge.exposeInMainWorld("markdownFiles", {
+  platform: process.platform,
   getPendingOpen: () => ipcRenderer.invoke("file:get-pending-open"),
   openDialog: () => ipcRenderer.invoke("file:open-dialog"),
   read: (filePath) => ipcRenderer.invoke("file:read", filePath),
   save: (payload) => ipcRenderer.invoke("file:save", payload),
   saveAs: (payload) => ipcRenderer.invoke("file:save-as", payload),
-  setDirty: (dirty) => ipcRenderer.invoke("app:set-dirty", dirty),
+  setDirty: (state) => ipcRenderer.invoke("app:set-dirty", state),
   confirmUnsaved: (fileLabel) => ipcRenderer.invoke("app:confirm-unsaved", fileLabel),
   closeAfterSave: () => ipcRenderer.invoke("app:close-after-save"),
   cancelCloseAfterSave: () => ipcRenderer.invoke("app:cancel-close-after-save"),
@@ -35,6 +36,7 @@ contextBridge.exposeInMainWorld("markdownFiles", {
   onMenuOpen: (callback) => subscribe("menu:open", callback),
   onMenuSave: (callback) => subscribe("menu:save", callback),
   onMenuSaveAs: (callback) => subscribe("menu:save-as", callback),
+  onMenuCloseTab: (callback) => subscribe("menu:close-tab", callback),
   onMenuTogglePreview: (callback) => subscribe("menu:toggle-preview", callback),
   onMenuFontSize: (callback) => subscribe("menu:set-font-size", callback),
   onMenuReadingWidth: (callback) => subscribe("menu:set-reading-width", callback),

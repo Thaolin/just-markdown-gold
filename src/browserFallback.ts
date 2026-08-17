@@ -5,7 +5,8 @@ export function installBrowserFallback(): void {
   if (window.markdownFiles) return;
 
   window.markdownFiles = {
-    getPendingOpen: async () => null,
+    platform: "browser",
+    getPendingOpen: async () => [],
     openDialog: async () => null,
     read: async (filePath) => ({
       filePath,
@@ -29,6 +30,7 @@ export function installBrowserFallback(): void {
     onMenuOpen: () => () => undefined,
     onMenuSave: () => () => undefined,
     onMenuSaveAs: () => () => undefined,
+    onMenuCloseTab: () => () => undefined,
     onMenuTogglePreview: () => () => undefined,
     onMenuFontSize: () => () => undefined,
     onMenuReadingWidth: () => () => undefined,

@@ -2,10 +2,13 @@ const { app, BrowserWindow, dialog, ipcMain, Menu } = require("electron");
 const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const { writeFileAtomic } = require("./fileOps.cjs");
 
 let mainWindow = null;
-let pendingOpenPath = findOpenPath(process.argv);
+let pendingOpenPaths = findOpenPaths(process.argv);
+let rendererReady = false;
 let rendererHasUnsavedChanges = false;
+let dirtyDocumentCount = 0;
 let closeAllowed = false;
 let closePromptActive = false;
 let livePreviewEnabled = true;
@@ -31,12 +34,60 @@ const readingWidthPreferences = [
   ["wide", "Wide"],
 ];
 
-const recoveryPath = path.join(app.getPath("userData"), "recovery-draft.md");
+const recoveryPath = path.join(app.getPath("userData"), "recovery-drafts.json");
+const legacyRecoveryPath = path.join(app.getPath("userData"), "recovery-draft.md");
 const recentFilesPath = path.join(app.getPath("userData"), "recent-files.json");
+let recoveryOperation = Promise.resolve();
+let recoveryWritesDisabled = false;
+
+function queueRecoveryOperation(operation) {
+  const next = recoveryOperation.catch(() => undefined).then(operation);
+  recoveryOperation = next;
+  return next;
+}
+
+async function clearRecoveryDrafts() {
+  await Promise.all([
+    fs.unlink(recoveryPath).catch((error) => { if (error.code !== "ENOENT") throw error; }),
+    fs.unlink(legacyRecoveryPath).catch((error) => { if (error.code !== "ENOENT") throw error; }),
+  ]);
+}
+
+async function clearRecoveryForClose() {
+  recoveryWritesDisabled = true;
+  try {
+    await queueRecoveryOperation(clearRecoveryDrafts);
+    return true;
+  } catch (error) {
+    recoveryWritesDisabled = false;
+    log("recovery clear before close error", { message: error.message });
+    await dialog.showMessageBox(mainWindow, {
+      type: "error",
+      title: "Recovery draft could not be cleared",
+      message: "The window is staying open so an old recovery draft cannot return unexpectedly.",
+      detail: error.message,
+      buttons: ["OK"],
+    });
+    return false;
+  }
+}
+
+function canonicalFilePath(filePath) {
+  const resolved = path.resolve(filePath);
+  try {
+    return fsSync.realpathSync.native(resolved);
+  } catch {
+    try {
+      return path.join(fsSync.realpathSync.native(path.dirname(resolved)), path.basename(resolved));
+    } catch {
+      return resolved;
+    }
+  }
+}
 
 function normalizeRecentKey(filePath) {
-  const resolved = path.resolve(filePath);
-  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  const canonicalPath = canonicalFilePath(filePath);
+  return process.platform === "win32" ? canonicalPath.toLowerCase() : canonicalPath;
 }
 
 function readRecentFiles() {
@@ -47,7 +98,7 @@ function readRecentFiles() {
     const files = [];
     for (const item of parsed) {
       if (typeof item !== "string" || !isMarkdownPath(item) || !fsSync.existsSync(item)) continue;
-      const resolved = path.resolve(item);
+      const resolved = canonicalFilePath(item);
       const key = normalizeRecentKey(resolved);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -71,7 +122,7 @@ function writeRecentFiles(filePaths) {
 
 function rememberRecentFile(filePath) {
   if (!isMarkdownPath(filePath)) return;
-  const resolved = path.resolve(filePath);
+  const resolved = canonicalFilePath(filePath);
   if (!fsSync.existsSync(resolved)) return;
   const key = normalizeRecentKey(resolved);
   const rest = readRecentFiles().filter((recentPath) => normalizeRecentKey(recentPath) !== key);
@@ -95,7 +146,7 @@ function buildRecentFilesMenu() {
       label: path.basename(filePath),
       tooltip: filePath,
       click: () => {
-        if (mainWindow) mainWindow.webContents.send("menu:open-recent", filePath);
+        dispatchOpenPaths([filePath]);
       },
     })),
     { type: "separator" },
@@ -174,6 +225,11 @@ function buildMenu() {
           accelerator: "CmdOrCtrl+Shift+S",
           click: () => { if (mainWindow) mainWindow.webContents.send("menu:save-as"); },
         },
+        {
+          label: "Close Tab",
+          accelerator: "CmdOrCtrl+W",
+          click: () => { if (mainWindow) mainWindow.webContents.send("menu:close-tab"); },
+        },
         { type: "separator" },
         {
           label: "Recent Files",
@@ -191,7 +247,7 @@ function buildMenu() {
       label: "Edit",
       submenu: [
         { label: "Undo", accelerator: "CmdOrCtrl+Z", role: "undo" },
-        { label: "Redo", accelerator: "CmdOrCtrl+Y", role: "redo" },
+        { label: "Redo", role: "redo" },
         { type: "separator" },
         { label: "Cut", accelerator: "CmdOrCtrl+X", role: "cut" },
         { label: "Copy", accelerator: "CmdOrCtrl+C", role: "copy" },
@@ -200,6 +256,7 @@ function buildMenu() {
         { type: "separator" },
         {
           label: "Find",
+          accelerator: "CmdOrCtrl+F",
           click: () => { if (mainWindow) mainWindow.webContents.send("menu:find"); },
         },
       ],
@@ -302,19 +359,103 @@ function isMarkdownPath(filePath) {
   return ext === ".md" || ext === ".markdown" || ext === ".mdown" || ext === ".txt";
 }
 
-function findOpenPath(argv) {
-  for (const arg of argv.slice(1)) {
-    if (!arg || arg.startsWith("-")) continue;
-    const resolved = path.resolve(arg);
-    if (isMarkdownPath(resolved)) return resolved;
+function uniqueOpenPaths(filePaths) {
+  const seen = new Set();
+  const paths = [];
+  for (const filePath of filePaths) {
+    if (typeof filePath !== "string" || !isMarkdownPath(filePath)) continue;
+    const resolved = canonicalFilePath(filePath);
+    const key = normalizeRecentKey(resolved);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    paths.push(resolved);
   }
-  return null;
+  return paths;
+}
+
+function findOpenPaths(argv) {
+  return uniqueOpenPaths(argv.slice(1).filter((arg) => arg && !arg.startsWith("-")));
+}
+
+function addPendingOpenPaths(filePaths) {
+  const seen = new Set(pendingOpenPaths.map(normalizeRecentKey));
+  for (const filePath of uniqueOpenPaths(filePaths)) {
+    const key = normalizeRecentKey(filePath);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pendingOpenPaths.push(filePath);
+  }
+}
+
+function dispatchOpenPaths(filePaths) {
+  const paths = uniqueOpenPaths(filePaths);
+  if (paths.length === 0) return;
+  if (!mainWindow || !rendererReady) {
+    addPendingOpenPaths(paths);
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+  for (const filePath of paths) {
+    mainWindow.webContents.send("file:open-request", filePath);
+  }
+}
+
+app.on("open-file", (event, filePath) => {
+  event.preventDefault();
+  const paths = uniqueOpenPaths([filePath]);
+  log("open-file", { filePath, paths });
+  if (paths.length === 0) return;
+  if (!mainWindow && app.isReady()) {
+    addPendingOpenPaths(paths);
+    createWindow();
+    return;
+  }
+  dispatchOpenPaths(paths);
+});
+
+function requireFilePath(filePath, name = "file path") {
+  if (typeof filePath !== "string" || filePath.trim() === "") {
+    throw new TypeError(`${name} must be a non-empty string`);
+  }
+  return filePath;
+}
+
+function requireContent(content) {
+  if (content == null) return "";
+  if (typeof content !== "string") throw new TypeError("content must be a string");
+  return content;
+}
+
+function requireOpenPaths(openPaths) {
+  if (openPaths == null) return [];
+  if (!Array.isArray(openPaths)) throw new TypeError("open paths must be an array");
+  return openPaths.map((openPath) => requireFilePath(openPath, "open path"));
+}
+
+function requireSavePayload(payload, { requirePath } = { requirePath: true }) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new TypeError("save payload must be an object");
+  }
+  const content = requireContent(payload.content);
+  const defaultPath = payload.defaultPath;
+  if (defaultPath != null && typeof defaultPath !== "string") {
+    throw new TypeError("default path must be a string");
+  }
+  return {
+    content,
+    defaultPath,
+    openPaths: requireOpenPaths(payload.openPaths),
+    ...(requirePath ? { filePath: requireFilePath(payload.filePath) } : {}),
+  };
 }
 
 function createWindow() {
-  log("createWindow", { packaged: app.isPackaged, pendingOpenPath, argv: process.argv });
+  log("createWindow", { packaged: app.isPackaged, pendingOpenPaths, argv: process.argv });
 
   refreshMenu();
+  rendererReady = false;
+  recoveryWritesDisabled = false;
 
   mainWindow = new BrowserWindow({
     width: 1180,
@@ -355,7 +496,9 @@ function createWindow() {
 
   mainWindow.on("closed", () => {
     mainWindow = null;
+    rendererReady = false;
     rendererHasUnsavedChanges = false;
+    dirtyDocumentCount = 0;
     closeAllowed = false;
     closePromptActive = false;
   });
@@ -367,13 +510,16 @@ function createWindow() {
     closePromptActive = true;
     let waitForSaveBeforeClose = false;
     try {
-      const action = await confirmUnsavedChanges();
+      const action = await confirmUnsavedChanges(
+        dirtyDocumentCount > 1 ? `${dirtyDocumentCount} documents` : "this document"
+      );
       if (action === "save") {
         waitForSaveBeforeClose = true;
         mainWindow?.webContents.send("app:save-before-close");
         return;
       }
       if (action === "discard") {
+        if (!(await clearRecoveryForClose())) return;
         closeAllowed = true;
         mainWindow?.close();
       }
@@ -397,23 +543,22 @@ app.on("window-all-closed", () => {
 });
 
 app.on("second-instance", (_event, argv) => {
-  const nextPath = findOpenPath(argv);
-  log("second-instance", { argv, nextPath });
+  const paths = findOpenPaths(argv);
+  log("second-instance", { argv, paths });
   if (!mainWindow) {
-    if (nextPath) pendingOpenPath = nextPath;
+    addPendingOpenPaths(paths);
     createWindow();
     return;
   }
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.focus();
-  if (nextPath) mainWindow.webContents.send("file:open-request", nextPath);
+  dispatchOpenPaths(paths);
 });
 
 ipcMain.handle("file:get-pending-open", () => {
-  const filePath = pendingOpenPath;
-  pendingOpenPath = null;
-  log("file:get-pending-open", { filePath });
-  return filePath;
+  const filePaths = pendingOpenPaths;
+  pendingOpenPaths = [];
+  rendererReady = true;
+  log("file:get-pending-open", { filePaths });
+  return filePaths;
 });
 
 ipcMain.handle("file:open-dialog", async () => {
@@ -428,6 +573,7 @@ ipcMain.handle("file:open-dialog", async () => {
 });
 
 ipcMain.handle("file:read", async (_event, filePath) => {
+  filePath = canonicalFilePath(requireFilePath(filePath));
   log("file:read start", { filePath });
   try {
     const content = await fs.readFile(filePath, "utf8");
@@ -443,17 +589,18 @@ ipcMain.handle("file:read", async (_event, filePath) => {
 });
 
 ipcMain.handle("file:save", async (_event, payload) => {
-  await fs.writeFile(payload.filePath, payload.content ?? "", "utf8");
-  try { fsSync.unlinkSync(recoveryPath); } catch { /* may not exist */ }
-  rememberRecentFile(payload.filePath);
-  try { app.addRecentDocument(payload.filePath); } catch { /* best-effort */ }
+  const { filePath, content } = requireSavePayload(payload);
+  const savedPath = await writeFileAtomic(filePath, content);
+  rememberRecentFile(savedPath);
+  try { app.addRecentDocument(savedPath); } catch { /* best-effort */ }
   refreshMenu();
-  return { filePath: payload.filePath };
+  return { filePath: savedPath };
 });
 
 ipcMain.handle("file:save-as", async (_event, payload) => {
+  const { defaultPath, content, openPaths } = requireSavePayload(payload, { requirePath: false });
   const result = await dialog.showSaveDialog(mainWindow, {
-    defaultPath: payload.defaultPath ?? "untitled.md",
+    defaultPath: defaultPath ?? "untitled.md",
     filters: [
       { name: "Markdown", extensions: ["md", "markdown"] },
       { name: "Text", extensions: ["txt"] },
@@ -461,12 +608,15 @@ ipcMain.handle("file:save-as", async (_event, payload) => {
     ],
   });
   if (result.canceled || !result.filePath) return null;
-  await fs.writeFile(result.filePath, payload.content ?? "", "utf8");
-  try { fsSync.unlinkSync(recoveryPath); } catch { /* may not exist */ }
-  rememberRecentFile(result.filePath);
-  try { app.addRecentDocument(result.filePath); } catch { /* best-effort */ }
+  const selectedPath = canonicalFilePath(result.filePath);
+  if (openPaths.some((openPath) => normalizeRecentKey(openPath) === normalizeRecentKey(selectedPath))) {
+    throw new Error("The selected file is already open.");
+  }
+  const savedPath = await writeFileAtomic(selectedPath, content);
+  rememberRecentFile(savedPath);
+  try { app.addRecentDocument(savedPath); } catch { /* best-effort */ }
   refreshMenu();
-  return { filePath: result.filePath };
+  return { filePath: savedPath };
 });
 
 async function confirmUnsavedChanges(fileLabel = "this document") {
@@ -485,18 +635,32 @@ async function confirmUnsavedChanges(fileLabel = "this document") {
   return "cancel";
 }
 
-ipcMain.handle("app:set-dirty", (_event, dirty) => {
-  rendererHasUnsavedChanges = Boolean(dirty);
+ipcMain.handle("app:set-dirty", (_event, state) => {
+  if (state && typeof state === "object") {
+    rendererHasUnsavedChanges = Boolean(state.dirty);
+    dirtyDocumentCount = rendererHasUnsavedChanges && Number.isInteger(state.count) && state.count > 0
+      ? state.count
+      : rendererHasUnsavedChanges ? 1 : 0;
+    return;
+  }
+  rendererHasUnsavedChanges = Boolean(state);
+  dirtyDocumentCount = rendererHasUnsavedChanges ? 1 : 0;
 });
 
 ipcMain.handle("app:confirm-unsaved", async (_event, fileLabel) => {
   return confirmUnsavedChanges(fileLabel);
 });
 
-ipcMain.handle("app:close-after-save", () => {
+ipcMain.handle("app:close-after-save", async () => {
+  if (!(await clearRecoveryForClose())) {
+    closePromptActive = false;
+    return false;
+  }
   rendererHasUnsavedChanges = false;
+  dirtyDocumentCount = 0;
   closeAllowed = true;
   mainWindow?.close();
+  return true;
 });
 
 ipcMain.handle("app:cancel-close-after-save", () => {
@@ -513,24 +677,36 @@ ipcMain.handle("menu:set-editor-preferences", (_event, preferences) => {
 });
 
 // ── Crash recovery draft ──
-ipcMain.handle("app:save-recovery-draft", async (_event, content) => {
-  try {
-    await fs.writeFile(recoveryPath, content ?? "", "utf8");
-    log("recovery saved", { chars: (content ?? "").length });
-  } catch (e) {
-    log("recovery save error", { message: e.message });
-  }
+ipcMain.handle("app:save-recovery-draft", (_event, content) => {
+  content = requireContent(content);
+  if (recoveryWritesDisabled) return;
+  return queueRecoveryOperation(async () => {
+    if (recoveryWritesDisabled) return;
+    try {
+      await fs.mkdir(path.dirname(recoveryPath), { recursive: true });
+      await writeFileAtomic(recoveryPath, content);
+      log("recovery saved", { chars: content.length });
+    } catch (error) {
+      log("recovery save error", { message: error.message });
+      throw error;
+    }
+  });
 });
 
 ipcMain.handle("app:get-recovery-draft", async () => {
+  let content;
   try {
-    const content = await fs.readFile(recoveryPath, "utf8");
-    return content || null;
-  } catch {
-    return null;
+    content = await fs.readFile(recoveryPath, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    try {
+      content = await fs.readFile(legacyRecoveryPath, "utf8");
+    } catch (legacyError) {
+      if (legacyError.code !== "ENOENT") throw legacyError;
+      return null;
+    }
   }
+  return content;
 });
 
-ipcMain.handle("app:clear-recovery-draft", () => {
-  try { fsSync.unlinkSync(recoveryPath); } catch { /* may not exist */ }
-});
+ipcMain.handle("app:clear-recovery-draft", () => queueRecoveryOperation(clearRecoveryDrafts));

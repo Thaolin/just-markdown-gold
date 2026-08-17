@@ -15,6 +15,8 @@ export interface DurableEditorProps {
   readOnly?: boolean;
   livePreview?: boolean;
   placeholderText?: string;
+  ariaLabel?: string;
+  active?: boolean;
 }
 
 interface SavedPos {
@@ -105,6 +107,8 @@ export default function DurableEditor({
   readOnly = false,
   livePreview = true,
   placeholderText = "Write Markdown...",
+  ariaLabel = "Markdown editor",
+  active = true,
 }: DurableEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -143,7 +147,7 @@ export default function DurableEditor({
         EditorView.lineWrapping,
         markdownRef.current.of(markdownMode(livePreview)),
         placeholder(placeholderText),
-        EditorView.contentAttributes.of({ spellcheck: "true" }),
+        EditorView.contentAttributes.of({ spellcheck: "true", "aria-label": ariaLabel }),
         editableRef.current.of(editableState(readOnlyRef.current)),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChangeRef.current(u.state.doc.toString());
@@ -184,7 +188,7 @@ export default function DurableEditor({
     if (!hostRef.current) return;
     const view = new EditorView({ state: buildState(value), parent: hostRef.current });
     viewRef.current = view;
-    currentEditorView = view;
+    if (active) currentEditorView = view;
     applySavedPos(view, docKey, value);
     return () => {
       cancelPersist();
@@ -216,6 +220,13 @@ export default function DurableEditor({
     if (!view) return;
     view.dispatch({ effects: markdownRef.current.reconfigure(markdownMode(livePreview)) });
   }, [livePreview]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !active) return;
+    currentEditorView = view;
+    view.requestMeasure();
+  }, [active]);
 
   return <div className="editor-host" ref={hostRef} />;
 }
