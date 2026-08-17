@@ -9,15 +9,17 @@ export {};
 declare global {
   interface Window {
     markdownFiles: {
-      getPendingOpen: () => Promise<string | null>;
+      platform: string;
+      getPendingOpen: () => Promise<string[]>;
       openDialog: () => Promise<string | null>;
       read: (filePath: string) => Promise<{ filePath: string; content: string }>;
       save: (payload: { filePath: string; content: string }) => Promise<{ filePath: string }>;
       saveAs: (payload: {
         defaultPath?: string;
         content: string;
+        openPaths?: string[];
       }) => Promise<{ filePath: string } | null>;
-      setDirty: (dirty: boolean) => Promise<void>;
+      setDirty: (state: boolean | { dirty: boolean; count: number }) => Promise<void>;
       confirmUnsaved: (fileLabel: string) => Promise<"save" | "discard" | "cancel">;
       closeAfterSave: () => Promise<void>;
       cancelCloseAfterSave: () => Promise<void>;
@@ -27,6 +29,7 @@ declare global {
       onMenuOpen: (callback: () => void) => () => void;
       onMenuSave: (callback: () => void) => () => void;
       onMenuSaveAs: (callback: () => void) => () => void;
+      onMenuCloseTab: (callback: () => void) => () => void;
       onMenuTogglePreview: (callback: () => void) => () => void;
       onMenuFontSize: (callback: (fontSize: FontSizePreference) => void) => () => void;
       onMenuReadingWidth: (callback: (readingWidth: ReadingWidthPreference) => void) => () => void;

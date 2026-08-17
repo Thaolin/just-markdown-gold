@@ -286,8 +286,9 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    void window.markdownFiles.getPendingOpen().then((nextPath) => {
+    void window.markdownFiles.getPendingOpen().then((pendingPaths) => {
       if (cancelled) return;
+      const [nextPath] = pendingPaths;
       if (nextPath) {
         void openPath(nextPath);
       } else {

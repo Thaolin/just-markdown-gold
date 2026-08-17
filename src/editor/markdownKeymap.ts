@@ -6,6 +6,13 @@ import type { EditorView, KeyBinding } from "@codemirror/view"
 type Cmd = (view: EditorView) => boolean
 export type MarkdownCommand = "bold" | "italic" | "h1" | "h2" | "h3" | "quote" | "bulletList" | "numberedList"
 
+function selectionEndLine(view: EditorView, from: number, to: number) {
+  const lineAtEnd = view.state.doc.lineAt(to)
+  return from !== to && to === lineAtEnd.from
+    ? view.state.doc.lineAt(to - 1)
+    : lineAtEnd
+}
+
 // Wrap selection with `mark` / unwrap if already wrapped / insert paired marks with cursor inside.
 // Known v1 edge: selecting `**bold**` then Ctrl+I strips one layer → `*bold*`. Acceptable.
 function toggleInlineMark(mark: string): Cmd {
@@ -49,7 +56,7 @@ function toggleHeading(level: 1 | 2 | 3): Cmd {
     const seen = new Set<number>()
     for (const range of state.selection.ranges) {
       const startLine = state.doc.lineAt(range.from)
-      const endLine = state.doc.lineAt(range.to)
+      const endLine = selectionEndLine(view, range.from, range.to)
       for (let n = startLine.number; n <= endLine.number; n++) {
         if (seen.has(n)) continue
         seen.add(n)
@@ -79,7 +86,7 @@ function toggleLinePrefix(prefix: string): Cmd {
     const lines: Array<{ from: number; hasPrefix: boolean }> = []
     for (const range of state.selection.ranges) {
       const startLine = state.doc.lineAt(range.from)
-      const endLine = state.doc.lineAt(range.to)
+      const endLine = selectionEndLine(view, range.from, range.to)
       for (let n = startLine.number; n <= endLine.number; n++) {
         if (seen.has(n)) continue
         seen.add(n)
